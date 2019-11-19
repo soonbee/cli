@@ -7,7 +7,7 @@ with open('requirements.txt') as file_requirements:
 
 setup(
     name='fbctl',
-    version='0.2.5',
+    version='0.2.6',
     description='flashbase command line tool',
     author='dudaji',
     author_email='shhong@dudaji.com',

@@ -216,6 +216,13 @@ def _deploy(cluster_id, history_save):
         #     return
     logger.info('OK')
 
+    # cluster stop and clean
+    center = Center()
+    center.update_ip_port()
+    center.stop_redis()
+    center.remove_all_of_redis_log_force()
+    center.cluster_clean()
+
     # backup conf
     if deploy_state == DEPLOYED:
         Center().conf_backup(local_ip, cluster_id, conf_backup_dir)
