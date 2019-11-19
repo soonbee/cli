@@ -126,12 +126,15 @@ class Cluster(object):
             if not origin_s_value:
                 return
         # cli config set cluster-node-timeout 2000
+        logger.debug('set cluster node time out 2000 for create')
         center.cli_config_set_all(key, '2000', m_hosts, m_ports)
-        center.cli_config_set_all(key, '2000', s_hosts, s_ports)
-        center.create_cluster(yes)
-        # cli config set cluster-node-timeout tmp
         if s_hosts and s_ports:
-            center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
+            center.cli_config_set_all(key, '2000', s_hosts, s_ports)
+        center.create_cluster(yes)
+        # cli config restore cluster-node-timeout
+        logger.debug('restore cluster node time out')
+        center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
+        if s_hosts and s_ports:
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
 
     def clean(self, logs=False):
