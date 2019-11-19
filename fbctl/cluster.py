@@ -95,6 +95,24 @@ class Cluster(object):
         success = center.check_hosts_connection()
         if not success:
             return
+
+        # if need to cluster start
+        alive_count = center.get_alive_all_redis_count()
+        all_count = len(center.all_host_list)
+        if alive_count < all_count:
+            logger.debug('cluster start in create')
+            # init
+            center.backup_server_logs()
+            center.create_redis_data_directory()
+
+            # cluster configure
+            center.configure_redis()
+            center.sync_conf(show_result=True)
+
+            # cluster start
+            center.start_redis_process()
+            center.wait_until_all_redis_process_up()
+
         key = 'cluster-node-timeout'
         m_hosts = center.master_host_list
         m_ports = center.master_port_list
