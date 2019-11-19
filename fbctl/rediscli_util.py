@@ -91,7 +91,7 @@ class RedisCliUtil(object):
         logger.debug(outs)
         buf += meta[1:]
         if formatter:
-            formatter(meta)
+            formatter(buf)
         else:
             logger.debug(outs)
 
