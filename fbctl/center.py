@@ -31,11 +31,13 @@ def get_ps_list_command(port_list):
     command = [
         "ps -ef",
         "grep 'redis-server'",
+        "egrep '({})'".format(port_filter),
         "grep -v 'ps -ef'",
-        "egrep '({})'".format(port_filter)
+        "grep -v 'grep'",
     ]
     command = ' | '.join(command)
     return command
+
 
 def get_my_ps_list_command(port_list, cluster_id):
     port_filter = '|'.join(str(x) for x in port_list)
@@ -44,8 +46,9 @@ def get_my_ps_list_command(port_list, cluster_id):
         "grep 'redis-server'",
         "grep `whoami`",
         "grep cluster_{}".format(cluster_id),
+        "egrep '({})'".format(port_filter),
         "grep -v 'ps -ef'",
-        "egrep '({})'".format(port_filter)
+        "grep -v 'grep'",
     ]
     command = ' | '.join(command)
     return command
