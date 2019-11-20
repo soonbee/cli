@@ -1,18 +1,25 @@
+import os
 from setuptools import setup, find_packages
 
 
-REQUIREMENTS = []
+here = os.path.abspath(os.path.dirname(__file__))
+
+requirements = []
 with open('requirements.txt') as file_requirements:
-    REQUIREMENTS = file_requirements.read().splitlines()
+    requirements = file_requirements.read().splitlines()
+
+about = {}
+with open(os.path.join(here, 'fbctl', '__version__.py'), 'r') as f:
+    exec(f.read(), about)
 
 setup(
-    name='fbctl',
-    version='0.2.7',
-    description='flashbase command line tool',
+    name=about['__title__'],
+    version=about['__version__'],
+    description=about['__description__'],
     author='dudaji',
     author_email='shhong@dudaji.com',
-    url='https://github.com/mnms/share/tree/master/fbcli',
-    install_requires=REQUIREMENTS,
+    url=about['__url__'],
+    install_requires=requirements,
     packages=find_packages(exclude=['tests', 'docs', 'sql']),
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
     package_data={},

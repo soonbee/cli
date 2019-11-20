@@ -601,10 +601,23 @@ def _validate_cluster_id(cluster_id):
         return cluster_id
 
 
+def print_version():
+    here = os.path.abspath(os.path.dirname(__file__))
+    about = {}
+    with open(os.path.join(here, '__version__.py'), 'r') as f:
+        exec(f.read(), about)
+    version = about['__version__']
+    print('fbctl version {}'.format(version))
+
+
 @click.command()
 @click.option('-c', '--cluster_id', default=None, help='ClusterId.')
 @click.option('-d', '--debug', default=False, help='Debug.')
-def main(cluster_id, debug):
+@click.option('-v', '--version', is_flag=True, help='Version.')
+def main(cluster_id, debug, version):
+    if version:
+        print_version()
+        return
     _initial_check()
     if debug:
         log.set_mode('debug')
