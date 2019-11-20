@@ -623,9 +623,9 @@ def get_deploy_history():
     default = {
         'hosts': ['127.0.0.1'],
         'master_count': 1,
-        'replicas': 2,
-        'ssd_count': 3,
-        'prefix_of_db_path': '~/sata_ssd/ssd_',
+        'replicas': 0,
+        'ssd_count': 4,
+        'prefix_of_db_path': '/nvme/data_',
     }
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
