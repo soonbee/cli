@@ -37,6 +37,19 @@ def get_ps_list_command(port_list):
     command = ' | '.join(command)
     return command
 
+def get_my_ps_list_command(port_list, cluster_id):
+    port_filter = '|'.join(str(x) for x in port_list)
+    command = [
+        "ps -ef",
+        "grep 'redis-server'",
+        "grep `whoami`",
+        "grep cluster_{}".format(cluster_id),
+        "grep -v 'ps -ef'",
+        "egrep '({})'".format(port_filter)
+    ]
+    command = ' | '.join(command)
+    return command
+
 
 class Center(object):
     def __init__(self):
@@ -319,10 +332,13 @@ class Center(object):
         client.close()
         logger.debug('OK')
 
-    def get_alive_redis_count(self, hosts, ports):
+    def get_alive_redis_count(self, hosts, ports, check_owner=False):
         logger.debug('get_alive_redis_count')
         logger.debug('hosts={}, ports={}'.format(hosts, ports))
-        ps_list_command = get_ps_list_command(ports)
+        if check_owner:
+            ps_list_command = get_my_ps_list_command(ports, self.cluster_id)
+        else:
+            ps_list_command = get_ps_list_command(ports)
         command = '{} | wc -l'.format(ps_list_command)
         total = 0
         for host in hosts:
@@ -341,26 +357,26 @@ class Center(object):
         total += redis_rdb_count
         return total
 
-    def get_alive_master_redis_count(self):
+    def get_alive_master_redis_count(self, check_owner=False):
         logger.debug('get_alive_master_redis_count')
         hosts = self.master_host_list
         ports = self.master_port_list
-        alive_count = self.get_alive_redis_count(hosts, ports)
+        alive_count = self.get_alive_redis_count(hosts, ports, check_owner)
         logger.debug('alive master count={}'.format(alive_count))
         return alive_count
 
-    def get_alive_slave_redis_count(self):
+    def get_alive_slave_redis_count(self, check_owner=False):
         logger.debug('get_alive_slave_redis_count')
         hosts = self.slave_host_list
         ports = self.slave_port_list
-        alive_count = self.get_alive_redis_count(hosts, ports)
+        alive_count = self.get_alive_redis_count(hosts, ports, check_owner)
         logger.debug('alive slave count={}'.format(alive_count))
         return alive_count
 
-    def get_alive_all_redis_count(self):
+    def get_alive_all_redis_count(self, check_owner=False):
         logger.debug('get_alive_all_redis_count')
-        total_m = self.get_alive_master_redis_count()
-        total_s = self.get_alive_slave_redis_count()
+        total_m = self.get_alive_master_redis_count(check_owner)
+        total_s = self.get_alive_slave_redis_count(check_owner)
         return total_m + total_s
 
     def create_cluster(self, yes=False):
