@@ -622,7 +622,7 @@ def get_deploy_history():
     file_path = os.path.join(get_root_of_cli_config(), 'deploy_history')
     default = {
         'hosts': ['127.0.0.1'],
-        'master_count': 1,
+        'master_count': 10,
         'replicas': 0,
         'ssd_count': 4,
         'prefix_of_db_path': '/nvme/data_',
