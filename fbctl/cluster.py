@@ -11,6 +11,7 @@ from fbctl.exceptions import (
     ClusterIdError,
     ClusterNotExistError,
     FlashbaseError,
+    ClusterRedisError,
 )
 
 
@@ -100,8 +101,7 @@ class Cluster(object):
         alive_count = center.get_alive_all_redis_count()
         my_alive_count = center.get_alive_all_redis_count(check_owner=True)
         if alive_count != my_alive_count:
-            logger.error('The port range is already taken.')
-            return
+            raise ClusterRedisError('The port range is already taken.')
         all_count = len(center.all_host_list)
         if alive_count < all_count:
             logger.debug('cluster start in create')
