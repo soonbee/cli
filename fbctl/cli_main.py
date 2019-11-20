@@ -75,7 +75,7 @@ def run_monitor(n=10):
 
 
 # def run_deploy_v3(cluster_id=None, history_save=True, force=False):
-def run_deploy(cluster_id=None, history_save=True):
+def run_deploy(cluster_id=None, history_save=True, clean=False):
     # validate cluster id
     if cluster_id is None:
         cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
@@ -91,14 +91,18 @@ def run_deploy(cluster_id=None, history_save=True):
         logger.error("option '--history-save' can use only 'True' or 'False'")
         return
     logger.debug("option '--history-save': {}".format(history_save))
+    if not isinstance(clean, bool):
+        logger.error("option '--clean' can use only 'True' or 'False'")
+        return
+    logger.debug("option '--clean': {}".format(clean))
     # if not isinstance(force, bool):
     #     logger.error("option '--force' can use only 'True' or 'False'")
     #     return
     # logger.debug("option '--force': {}".format(force))
-    _deploy(cluster_id, history_save)
+    _deploy(cluster_id, history_save, clean)
 
 
-def _deploy(cluster_id, history_save):
+def _deploy(cluster_id, history_save, clean):
     deploy_state = DeployUtil().get_state(cluster_id)
     if deploy_state == DEPLOYED:
         q = [
@@ -223,8 +227,9 @@ def _deploy(cluster_id, history_save):
         run_cluster_use(cluster_id)
         center.update_ip_port()
         center.stop_redis()
-        center.remove_all_of_redis_log_force()
-        center.cluster_clean()
+        if clean:
+            center.remove_all_of_redis_log_force()
+            center.cluster_clean()
         run_cluster_use(cur_cluster_id)
 
     # backup conf
