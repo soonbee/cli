@@ -217,11 +217,15 @@ def _deploy(cluster_id, history_save):
     logger.info('OK')
 
     # cluster stop and clean
-    center = Center()
-    center.update_ip_port()
-    center.stop_redis()
-    center.remove_all_of_redis_log_force()
-    center.cluster_clean()
+    if deploy_state == DEPLOYED:
+        center = Center()
+        cur_cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
+        run_cluster_use(cluster_id)
+        center.update_ip_port()
+        center.stop_redis()
+        center.remove_all_of_redis_log_force()
+        center.cluster_clean()
+        run_cluster_use(cur_cluster_id)
 
     # backup conf
     if deploy_state == DEPLOYED:
