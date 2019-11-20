@@ -7,6 +7,7 @@ from fbctl import utils
 from fbctl.center import Center
 from fbctl.rediscli_util import RedisCliUtil
 from fbctl.utils import TableReport
+from fbctl.log import logger
 
 
 class RedisCliInfo(object):
@@ -84,6 +85,9 @@ class RedisCliConfig(object):
         :param host: host
         :param port: port
         """
+        if not isinstance(all, bool):
+            logger.error("option '--all' can use only 'True' or 'False'")
+            return
         sub_cmd = 'config get "{key}"'.format(key=key)
         if all:
             RedisCliUtil.command_all(
@@ -95,7 +99,7 @@ class RedisCliConfig(object):
                 host=host,
                 port=port)
 
-    def set(self, key, value, save, all=False, host=None, port=None):
+    def set(self, key, value, all=False, save=False, host=None, port=None):
         """Command: cli config set [key] [value]
 
         :param key: redis config keyword
@@ -105,6 +109,12 @@ class RedisCliConfig(object):
         :param host: host
         :param port: port
         """
+        if not isinstance(all, bool):
+            logger.error("option '--all' can use only 'True' or 'False'")
+            return
+        if not isinstance(save, bool):
+            logger.error("option '--save' can use only 'True' or 'False'")
+            return
         tr = TableReport(['step', 'result'])
         sub_cmd = 'config set {key} {value}'.format(key=key, value=value)
         if all:
