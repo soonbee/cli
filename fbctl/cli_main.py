@@ -476,17 +476,17 @@ class Command(object):
 We use python-fire(https://github.com/google/python-fire)
 for automatically generating CLIs
 
-    - deploy: copy flashbase package to nodes
-    - c: change cluster #
+    - deploy: install flashbase package to nodes
+    - c: change cluster #, alias of cluster use
     - cluster: trib.rb cluster wrapper
     - cli: redis-cli command wrapper
     - conf: edit conf file
-    - monitor: monitor logs
-    - thriftserver: beeline, start, stop thriftserver
+    - monitor: monitor redis logs
+    - thriftserver: thriftserver command
     - ths: alias of thriftserver
-    - ll: change log level to debug fbcli
+    - ll: change log level to debug fbctl
     - exit: exit fbctl
-    - clear clear screen
+    - clear: clear screen
  """
 
     def __init__(self):
@@ -503,7 +503,6 @@ for automatically generating CLIs
         self.thriftserver = ThriftServer()
         self.ths = ThriftServer()
         self.ll = log.set_level
-        self.import_conf = run_import_conf
         self.exit = run_exit
         self.clear = run_clear
 
@@ -622,7 +621,7 @@ def main(cluster_id, debug, version):
     if debug:
         log.set_mode('debug')
 
-    logger.debug('Start fbcli')
+    logger.debug('Start fbctl')
 
     cluster_id = _validate_cluster_id(cluster_id)
 
@@ -638,9 +637,9 @@ def main(cluster_id, debug, version):
             text = session.prompt(p, style=utils.style)
             if text == "exit":
                 break
-            if 'fbcli' in text:
+            if 'fbctl' in text:
                 old = text
-                text = text.replace('fbcli', '')
+                text = text.replace('fbctl', '')
                 logger.info('> You can use "%s" instead of "%s"' % (text, old))
             _handle(text)
         except KeyboardInterrupt:

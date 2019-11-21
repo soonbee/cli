@@ -1,4 +1,5 @@
 from fbctl import utils
+from fbctl.log import logger
 from fbctl.rediscli import (
     RedisCliCluster,
     RedisCliConfig,
@@ -23,6 +24,9 @@ def ping(all=False, host=None, port=0):
     :param host: host info
     :param port: port info
     """
+    if not isinstance(all, bool):
+        logger.error("option '--all' can use only 'True' or 'False'")
+        return
     sub_cmd = 'ping'
     _command(sub_cmd, all, host, port)
 
@@ -34,6 +38,9 @@ def reset_oom(all=False, host=None, port=0):
     :param host: host info
     :param port: port info
     """
+    if not isinstance(all, bool):
+        logger.error("option '--all' can use only 'True' or 'False'")
+        return
     sub_cmd = 'resetOom'
     _command(sub_cmd, all, host, port)
 
@@ -46,6 +53,9 @@ def reset_info(key, all=False, host=None, port=0):
     :param host: host info
     :param port: port info
     """
+    if not isinstance(all, bool):
+        logger.error("option '--all' can use only 'True' or 'False'")
+        return
     sub_cmd = 'resetInfo %s' % key
     _command(sub_cmd, all, host, port)
 
@@ -58,6 +68,9 @@ def metakeys(key, all=False, host=None, port=0):
     :param host: host info
     :param port: port info
     """
+    if not isinstance(all, bool):
+        logger.error("option '--all' can use only 'True' or 'False'")
+        return
     sub_cmd = 'metakeys "%s"' % key
     _command(sub_cmd, all, host, port)
 
