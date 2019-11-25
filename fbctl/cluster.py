@@ -97,6 +97,14 @@ class Cluster(object):
         if not success:
             return
 
+        m_count = len(center.master_host_list) * len(center.master_port_list)
+        if m_count < 3:
+            msg = [
+                'To create cluster, ',
+                '3 master processes should be included at least.',
+            ]
+            raise ClusterRedisError(''.join(msg))
+
         # if need to cluster start
         alive_count = center.get_alive_all_redis_count()
         my_alive_count = center.get_alive_all_redis_count(check_owner=True)
