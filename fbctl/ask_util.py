@@ -44,16 +44,26 @@ def installer():
     release_path = path_of_cli['release_path']
     if not os.path.exists(release_path):
         os.mkdir(release_path)
-    installer_list = os.listdir(release_path)
-    installer_list = list(filter(lambda x: x != '.gitignore', installer_list))
+    installer_list = net.get_installers_from_fb_s3()
+    buf = os.listdir(release_path)
+    buf = list(filter(lambda x: x != '.gitignore', buf))
     pattern = '.download'
-    installer_list = list(filter(lambda x: pattern not in x, installer_list))
-    installer_list.sort(reverse=True)
+    buf = list(filter(lambda x: pattern not in x, buf))
+    for file_name in buf:
+        installer_list.append({
+            'name': file_name,
+            'url': os.path.join(release_path, file_name),
+            'type': 'local',
+        })
 
     # formatting msg
     formatted = []
-    for i, name in enumerate(installer_list):
-        formatted.append('    ({index}) {name}'.format(index=i+1, name=name))
+    for i, obj in enumerate(installer_list):
+        formatted.append('    ({index}) [{type}] {name}'.format(
+            index=i+1,
+            name=obj['name'],
+            type=obj['type'].upper(),
+        ))
     msg = [
         'Select installer',
         '',
@@ -79,10 +89,24 @@ def installer():
             # case: select in list
             result = int(result) - 1
             if result in range(0, len(installer_list)):
-                ret = os.path.join(release_path, installer_list[result])
-                logger.debug('Select insaller in list: {}'.format(ret))
-                logger.info('OK, {}'.format(installer_list[result]))
-                return os.path.expanduser(ret)
+                if installer_list[result]['type'] == 'download':
+                    url = installer_list[result]['url']
+                    file_name = installer_list[result]['name']
+                    installer_path = os.path.join(release_path, file_name)
+                    success = net.download_file(url, installer_path)
+                    if success:
+                        logger.info('OK, {}'.format(file_name))
+                        return installer_path
+                    msg = [
+                        "Fail to download from '{}', ".format(url),
+                        'try again.'
+                    ]
+                    logger.error(''.join(msg))
+                if installer_list[result]['type'] == 'local':
+                    ret = installer_list[result]['url']
+                    logger.debug('Select insaller in list: {}'.format(ret))
+                    logger.info('OK, {}'.format(installer_list[result]))
+                    return os.path.expanduser(ret)
             msg = [
                 'Choose a number ',
                 'between 1 and {}'.format(len(installer_list)),
