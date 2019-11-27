@@ -373,7 +373,7 @@ def get_installers_from_fb_s3(maximum_number=5):
         status_code = res.status_code
         if status_code >= 400:
             logger.warning('{}:HTTP Status {}'.format(warning_msg, status_code))
-        res_text = res.text.encode('utf-8')
+        res_text = str(res.text)
         res_text = list(map(lambda x: x.strip(), res_text.split('\n')))
         filtered = list(filter(lambda x: x.startswith('<a href='), res_text))
         for text in filtered:
