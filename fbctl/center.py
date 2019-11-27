@@ -910,6 +910,7 @@ class Center(object):
             )
             threads.append(t)
         for x in threads:
+            time.sleep(0.02)
             x.start()
         for x in threads:
             x.join()
