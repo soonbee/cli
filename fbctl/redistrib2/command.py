@@ -216,14 +216,19 @@ def _migr_one_slot(source_node, target_node, slot, nodes):
     return keys
 
 
-def _join_to_cluster(clst, new):
-    _ensure_cluster_status_set(clst)
-    _ensure_cluster_status_unset(new)
-
+@retry(stop_max_attempt_number=3, wait_fixed=500)
+def _meet(clst, new):
     m = clst.execute('cluster', 'meet', new.host, new.port)
     logging.debug('Ask `cluster meet` Rsp %s', m)
     if m.lower() != 'ok':
         clst.raise_('Unexpected reply after MEET: %s' % m)
+
+
+def _join_to_cluster(clst, new):
+    _ensure_cluster_status_set(clst)
+    _ensure_cluster_status_unset(new)
+
+    _meet(clst, new)
     _poll_check_status(new)
 
 
@@ -403,13 +408,18 @@ def replicate(master_host, master_port, slave_host, slave_port):
         logging.info('Instance at %s:%d has joined %s:%d; now set replica',
                      slave_host, slave_port, master_host, master_port)
 
-        m = t.execute('cluster', 'replicate', myid)
-        logging.debug('Ask `cluster replicate` Rsp %s', m)
-        if m.lower() != 'ok':
-            t.raise_('Unexpected reply after REPCLIATE: %s' % m)
+        _replicate(t, myid)
         _check_slave(slave_host, slave_port, master_conn)
         logging.info('Instance at %s:%d set as replica to %s', slave_host,
                      slave_port, myid)
+
+
+@retry(stop_max_attempt_number=4, wait_fixed=500)
+def _replicate(t, myid):
+    m = t.execute('cluster', 'replicate', myid)
+    logging.debug('Ask `cluster replicate` Rsp %s', m)
+    if m.lower() != 'ok':
+        t.raise_('Unexpected reply after REPCLIATE: %s' % m)
 
 
 def _alive_master(node):
