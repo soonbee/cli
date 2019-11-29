@@ -89,9 +89,10 @@ def installer():
             # case: select in list
             result = int(result) - 1
             if result in range(0, len(installer_list)):
-                if installer_list[result]['type'] == 'download':
-                    url = installer_list[result]['url']
-                    file_name = installer_list[result]['name']
+                selected = installer_list[result]
+                if selected['type'] == 'download':
+                    url = selected['url']
+                    file_name = selected['name']
                     installer_path = os.path.join(release_path, file_name)
                     success = net.download_file(url, installer_path)
                     if success:
@@ -102,10 +103,10 @@ def installer():
                         'try again.'
                     ]
                     logger.error(''.join(msg))
-                if installer_list[result]['type'] == 'local':
-                    ret = installer_list[result]['url']
+                if selected['type'] == 'local':
+                    ret = selected['url']
                     logger.debug('Select insaller in list: {}'.format(ret))
-                    logger.info('OK, {}'.format(installer_list[result]))
+                    logger.info('OK, {}'.format(selected['name']))
                     return os.path.expanduser(ret)
             msg = [
                 'Choose a number ',
