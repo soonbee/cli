@@ -216,7 +216,7 @@ def _migr_one_slot(source_node, target_node, slot, nodes):
     return keys
 
 
-@retry(stop_max_attempt_number=3, wait_fixed=500)
+@retry(stop_max_attempt_number=8, wait_fixed=500)
 def _meet(clst, new):
     m = clst.execute('cluster', 'meet', new.host, new.port)
     logging.debug('Ask `cluster meet` Rsp %s', m)
@@ -414,7 +414,7 @@ def replicate(master_host, master_port, slave_host, slave_port):
                      slave_port, myid)
 
 
-@retry(stop_max_attempt_number=4, wait_fixed=500)
+@retry(stop_max_attempt_number=8, wait_fixed=500)
 def _replicate(t, myid):
     m = t.execute('cluster', 'replicate', myid)
     logging.debug('Ask `cluster replicate` Rsp %s', m)
