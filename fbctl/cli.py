@@ -1,5 +1,6 @@
 from fbctl import utils
 from fbctl.log import logger
+from fbctl import color
 from fbctl.rediscli import (
     RedisCliCluster,
     RedisCliConfig,
@@ -17,7 +18,7 @@ def _command(sub_cmd, all, host, port):
         RedisCliUtil.command(sub_cmd=sub_cmd, host=host, port=port)
 
 
-def ping(all=False, host=None, port=0):
+def ping(host=None, port=None, all=False):
     """Send ping command
 
     :param all: If true, send command to all
@@ -27,8 +28,25 @@ def ping(all=False, host=None, port=0):
     if not isinstance(all, bool):
         logger.error("option '--all' can use only 'True' or 'False'")
         return
-    sub_cmd = 'ping'
-    _command(sub_cmd, all, host, port)
+    if (not host or not port) and not all:
+        logger.error("Enter host and port or use '--all' option.")
+        return
+    if all:
+        meta = []
+        ret = RedisCliUtil.command_all_async('ping 2>&1')
+        pong_cnt = 0
+        for m_s, host, port, result, _ in ret:
+            addr = '{}:{}'.format(host, port)
+            if result == 'OK':
+                pong_cnt += 1
+            else:
+                meta.append([m_s, addr, color.red('FAIL')])
+        if meta:
+            utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
+        logger.info('alive redis {}/{}'.format(pong_cnt, len(ret)))
+        return
+    if host and port:
+        _command('ping', False, host, port)
 
 
 def reset_oom(all=False, host=None, port=0):

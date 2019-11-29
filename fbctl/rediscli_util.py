@@ -4,6 +4,8 @@ import os
 import fileinput
 import random
 import subprocess
+from threading import Thread
+import time
 
 from fbctl import config
 from fbctl import utils
@@ -162,6 +164,50 @@ class RedisCliUtil(object):
             except subprocess.CalledProcessError as ex:
                 logger.debug('exception: %s' % str(ex))
         return outs, meta
+
+    @staticmethod
+    def command_all_async(sub_cmd):
+        def _async_target_func(m_s, pre_cmd, host, port, sub_cmd, ret):
+            try:
+                command = '{} -h {} -p {} {}'.format(pre_cmd, host, port, sub_cmd)
+                stdout = subprocess.check_output(command, shell=True)
+                stdout = stdout.decode('utf-8').strip()
+                ret.append((m_s, host, port, 'OK', stdout))
+            except Exception as ex:
+                stderr = str(ex)
+                logger.debug(stderr)
+                ret.append((m_s, host, port, 'FAIL', stderr))
+        cluster_id = config.get_cur_cluster_id()
+        master_host_list = config.get_master_host_list(cluster_id)
+        master_port_list = config.get_master_port_list(cluster_id)
+        slave_host_list = config.get_slave_host_list(cluster_id)
+        slave_port_list = config.get_slave_port_list(cluster_id)
+        path_of_fb = config.get_path_of_fb(cluster_id)
+        sr2_redis_bin = path_of_fb['sr2_redis_bin']
+
+        threads = []
+        ret = []  # (m/s, host, port, result, message)
+        pre_cmd = '{}/redis-cli -c'.format(sr2_redis_bin)
+        for host in master_host_list:
+            for port in master_port_list:
+                t = Thread(
+                    target=_async_target_func,
+                    args=('Master', pre_cmd, host, port, sub_cmd, ret),
+                )
+                threads.append(t)
+        for host in slave_host_list:
+            for port in slave_port_list:
+                t = Thread(
+                    target=_async_target_func,
+                    args=('Slave', pre_cmd, host, port, sub_cmd, ret),
+                )
+                threads.append(t)
+        for th in threads:
+            th.start()
+            time.sleep(0.02)
+        for th in threads:
+            th.join()
+        return ret
 
     @staticmethod
     def save_redis_template_config(key, value):

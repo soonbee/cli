@@ -4,6 +4,7 @@ from terminaltables import AsciiTable
 
 from fbctl import config
 from fbctl import utils
+from fbctl import color
 from fbctl.center import Center
 from fbctl.rediscli_util import RedisCliUtil
 from fbctl.utils import TableReport
@@ -88,7 +89,22 @@ class RedisCliConfig(object):
         if not isinstance(all, bool):
             logger.error("option '--all' can use only 'True' or 'False'")
             return
-        sub_cmd = 'config get "{key}"'.format(key=key)
+        if (not host or not port) and not all:
+            logger.error("Enter host and port or use '--all' option.")
+            return
+        sub_cmd = 'config get "{key}" 2>&1'.format(key=key)
+        if all:
+            meta = []
+            ret = RedisCliUtil.command_all_async(sub_cmd)
+            for m_s, host, port, result, message in ret:
+                addr = '{}:{}'.format(host, port)
+                if result == 'OK':
+                    _, value = message.split('\n')
+                    meta.append([m_s, addr, value])
+                else:
+                    meta.append([m_s, addr, color.red(result)])
+            utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
+            return
         if all:
             RedisCliUtil.command_all(
                 sub_cmd=sub_cmd,
@@ -115,11 +131,25 @@ class RedisCliConfig(object):
         if not isinstance(save, bool):
             logger.error("option '--save' can use only 'True' or 'False'")
             return
+        if (not host or not port) and not all:
+            logger.error("Enter host and port or use '--all' option.")
+            return
         tr = TableReport(['step', 'result'])
-        sub_cmd = 'config set {key} {value}'.format(key=key, value=value)
+        sub_cmd = 'config set {key} {value} 2>&1'.format(key=key, value=value)
         if all:
-            RedisCliUtil.command_all(
-                sub_cmd=sub_cmd, formatter=utils.print_table)
+            meta = []
+            ret = RedisCliUtil.command_all_async(sub_cmd)
+            ok_cnt = 0
+            for m_s, host, port, result, _ in ret:
+                addr = '{}:{}'.format(host, port)
+                if result == 'OK':
+                    ok_cnt += 1
+                else:
+                    meta.append([m_s, addr, color.red('FAIL')])
+            if meta:
+                utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
+            logger.info('success {}/{}'.format(ok_cnt, len(ret)))
+            return
         else:
             RedisCliUtil.command(
                 sub_cmd=sub_cmd,
