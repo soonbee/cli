@@ -35,9 +35,9 @@ def ping(host=None, port=None, all=False):
         meta = []
         ret = RedisCliUtil.command_all_async('ping 2>&1')
         pong_cnt = 0
-        for m_s, host, port, result in ret:
+        for m_s, host, port, result, _ in ret:
             addr = '{}:{}'.format(host, port)
-            if result.lower() == 'pong':
+            if result == 'OK':
                 pong_cnt += 1
             else:
                 meta.append([m_s, addr, color.red('FAIL')])

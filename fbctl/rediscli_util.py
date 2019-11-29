@@ -172,10 +172,11 @@ class RedisCliUtil(object):
                 command = '{} -h {} -p {} {}'.format(pre_cmd, host, port, sub_cmd)
                 stdout = subprocess.check_output(command, shell=True)
                 stdout = stdout.decode('utf-8').strip()
-                ret.append((m_s, host, port, stdout))
+                ret.append((m_s, host, port, 'OK', stdout))
             except Exception as ex:
-                logger.debug(ex)
-                ret.append((m_s, host, port, str(ex)))
+                stderr = str(ex)
+                logger.debug(stderr)
+                ret.append((m_s, host, port, 'FAIL', stderr))
         cluster_id = config.get_cur_cluster_id()
         master_host_list = config.get_master_host_list(cluster_id)
         master_port_list = config.get_master_port_list(cluster_id)
@@ -185,7 +186,7 @@ class RedisCliUtil(object):
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
 
         threads = []
-        ret = []  # (m/s, host, port, result)
+        ret = []  # (m/s, host, port, result, message)
         pre_cmd = '{}/redis-cli -c'.format(sr2_redis_bin)
         for host in master_host_list:
             for port in master_port_list:

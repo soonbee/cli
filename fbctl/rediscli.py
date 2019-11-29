@@ -125,9 +125,9 @@ class RedisCliConfig(object):
             meta = []
             ret = RedisCliUtil.command_all_async(sub_cmd)
             ok_cnt = 0
-            for m_s, host, port, result in ret:
+            for m_s, host, port, result, _ in ret:
                 addr = '{}:{}'.format(host, port)
-                if result.lower() == 'ok':
+                if result == 'OK':
                     ok_cnt += 1
                 else:
                     meta.append([m_s, addr, color.red('FAIL')])
