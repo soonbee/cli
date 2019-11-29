@@ -181,20 +181,12 @@ class RedisCliUtil(object):
         master_port_list = config.get_master_port_list(cluster_id)
         slave_host_list = config.get_slave_host_list(cluster_id)
         slave_port_list = config.get_slave_port_list(cluster_id)
-        lib_path = config.get_ld_library_path(cluster_id)
         path_of_fb = config.get_path_of_fb(cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
-        env_cmd = [
-            'GLOBIGNORE=*;',
-            'export LD_LIBRARY_PATH={};'.format(lib_path['ld_library_path']),
-            'export DYLD_LIBRARY_PATH={};'.format(
-                lib_path['dyld_library_path']
-            ),
-        ]
 
         threads = []
         ret = []  # (m/s, host, port, result)
-        pre_cmd = '{} {}/redis-cli -c'.format(' '.join(env_cmd), sr2_redis_bin)
+        pre_cmd = '{}/redis-cli -c'.format(sr2_redis_bin)
         for host in master_host_list:
             for port in master_port_list:
                 t = Thread(
