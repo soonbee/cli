@@ -11,6 +11,7 @@ import shutil
 import paramiko
 import requests
 
+from fbctl import parser
 from fbctl.log import logger
 from fbctl.exceptions import (
     SSHConnectionError,
@@ -349,3 +350,40 @@ def download_file(url, file_path):
     finally:
         if os.path.isfile(download_path):
             os.remove(download_path)
+
+
+def get_installers_from_fb_s3(maximum_number=5):
+    '''bring up to maximum_number installers in the latest order from s3
+    default value of maximum_value is 5
+    if there is problem with url or network connection is fail,
+    return empty list
+
+    return
+    [{
+        name:string: file name
+        url:string: download url
+        type:string: url type
+    }]
+    '''
+    ret = []
+    url = 'https://flashbase.s3.ap-northeast-2.amazonaws.com/latest/latest.html'
+    warning_msg = "Fail to load installer list from '{}'".format(url)
+    try:
+        res = requests.get(url)
+        status_code = res.status_code
+        if status_code >= 400:
+            logger.warning('{}:HTTP Status {}'.format(warning_msg, status_code))
+        res_text = str(res.text)
+        res_text = list(map(lambda x: x.strip(), res_text.split('\n')))
+        filtered = list(filter(lambda x: x.startswith('<a href='), res_text))
+        for text in filtered:
+            if maximum_number <= 0:
+                break
+            link = parser.get_word_between(text, '<a href="', '">')
+            name = parser.get_word_between(text, '<a href=".*">', '/*</a>')
+            ret.append({'name': name, 'url': link, 'type': 'download'})
+            maximum_number -= 1
+        return ret
+    except requests.exceptions.ConnectionError:
+        logger.warning('{}:Connection failed'.format(warning_msg))
+        return []

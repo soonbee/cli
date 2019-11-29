@@ -885,28 +885,39 @@ class Center(object):
         return ret
 
     @staticmethod
-    def _replicate_thread(m_ip, m_port, s_ip, s_port):
+    def _replicate_thread(m_ip, m_port, s_ip, s_port, fail_list):
         logger.info('replicate [M] %s %s - [S] %s %s' % (
             m_ip, m_port, s_ip, s_port))
-        m_ip = net.get_ip(m_ip)
-        s_ip = net.get_ip(s_ip)
-        trib.replicate(m_ip, m_port, s_ip, s_port)
+        try:
+            m_ip = net.get_ip(m_ip)
+            s_ip = net.get_ip(s_ip)
+            trib.replicate(m_ip, m_port, s_ip, s_port)
+        except Exception as ex:
+            m_addr = '{}:{}'.format(m_ip, m_port)
+            s_addr = '{}:{}'.format(s_ip, s_port)
+            msg = 'Fail replicate [M] {} - [S] {}'.format(m_addr, s_addr)
+            logger.error('\n'.join([msg, str(ex)]))
+            fail_list.append((m_ip, m_port, s_ip, s_port))
 
     def replicate(self):
         threads = []
+        fail_list = []
         pair_list = self._get_master_slave_pair_list()
         for m_ip, m_port, s_ip, s_port in pair_list:
             t = Thread(
                 target=Center._replicate_thread,
-                args=(m_ip, m_port, s_ip, s_port,))
+                args=(m_ip, m_port, s_ip, s_port, fail_list)
+            )
             threads.append(t)
         for x in threads:
+            time.sleep(0.02)
             x.start()
-        count = 0
         for x in threads:
             x.join()
-            count += 1
-            logger.info('%d / %d meet complete.' % (count, len(threads)))
+        logger.info('{} / {} replicate completion'.format(
+            len(threads) - len(fail_list),
+            len(threads)
+        ))
 
     def cli_config_get(self, key, host, port):
         lib_path = config.get_ld_library_path(self.cluster_id)
