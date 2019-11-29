@@ -32,15 +32,18 @@ def ping(host=None, port=None, all=False):
         logger.error("Enter host and port or use '--all' option.")
         return
     if all:
+        meta = []
         ret = RedisCliUtil.command_all_async('ping 2>&1')
-        meta = [['TYPE', 'ADDR', 'RESULT']]
+        pong_cnt = 0
         for m_s, host, port, result in ret:
             addr = '{}:{}'.format(host, port)
             if result.lower() == 'pong':
-                meta.append([m_s, addr, color.green('PONG')])
+                pong_cnt += 1
             else:
                 meta.append([m_s, addr, color.red('FAIL')])
-        utils.print_table(meta)
+        if meta:
+            utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
+        logger.info('alive redis {}/{}'.format(pong_cnt, len(ret)))
         return
     if host and port:
         _command('ping', False, host, port)
