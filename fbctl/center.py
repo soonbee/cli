@@ -950,6 +950,9 @@ class Center(object):
             stdout = subprocess.check_output(command, shell=True)
             stdout = stdout.decode('utf-8')
             return stdout.strip().split()[1]
+        except IndexError as ex:
+            logger.debug("Cannot get value by key '{}'".format(key))
+            return False
         except subprocess.CalledProcessError as ex:
             logger.debug(ex)
             return False
