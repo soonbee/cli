@@ -130,24 +130,29 @@ class Cluster(object):
         m_ports = center.master_port_list
         origin_m_value = center.cli_config_get(key, m_hosts[0], m_ports[0])
         if not origin_m_value:
-            return
+            msg = "RedisConfigKeyError(master): '{}'".format(key)
+            logger.warning(msg)
         s_hosts = center.slave_host_list
         s_ports = center.slave_port_list
         if s_hosts and s_ports:
             origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
             if not origin_s_value:
-                return
-        # cli config set cluster-node-timeout 2000
-        logger.debug('set cluster node time out 2000 for create')
-        center.cli_config_set_all(key, '2000', m_hosts, m_ports)
-        if s_hosts and s_ports:
-            center.cli_config_set_all(key, '2000', s_hosts, s_ports)
+                msg = "RedisConfigKeyError(slave): '{}'".format(key)
+                logger.warning(msg)
+        if origin_m_value:
+            # cli config set cluster-node-timeout 2000
+            logger.debug('set cluster node time out 2000 for create')
+            center.cli_config_set_all(key, '2000', m_hosts, m_ports)
+            if s_hosts and s_ports and origin_s_value:
+                center.cli_config_set_all(key, '2000', s_hosts, s_ports)
         center.create_cluster(yes)
-        # cli config restore cluster-node-timeout
-        logger.debug('restore cluster node time out')
-        center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
-        if s_hosts and s_ports:
-            center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+        if origin_m_value:
+            # cli config restore cluster-node-timeout
+            logger.debug('restore cluster node time out')
+            center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
+            if s_hosts and s_ports and origin_s_value:
+                v = origin_s_value
+                center.cli_config_set_all(key, v, s_hosts, s_ports)
 
     def clean(self, logs=False):
         """Clean cluster
