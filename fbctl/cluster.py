@@ -12,6 +12,7 @@ from fbctl.exceptions import (
     ClusterNotExistError,
     FlashbaseError,
     ClusterRedisError,
+    PropsKeyError,
 )
 
 
@@ -266,8 +267,13 @@ class Cluster(object):
         center = Center()
         center.update_ip_port()
         # check
-        slave_host_list = config.get_slave_host_list()
-        success = center.check_hosts_connection(hosts=slave_host_list)
+        s_hosts = center.slave_host_list
+        s_ports = center.slave_port_list
+        if not s_hosts:
+            raise PropsKeyError('sr2_redis_slave_hosts')
+        if not s_ports:
+            raise PropsKeyError('sr2_redis_slave_ports')
+        success = center.check_hosts_connection(hosts=s_hosts)
         if not success:
             return
         center.ensure_cluster_exist()
@@ -294,20 +300,20 @@ class Cluster(object):
 
         # change redis config temporarily
         key = 'cluster-node-timeout'
-        s_hosts = center.slave_host_list
-        s_ports = center.slave_port_list
-        if s_hosts and s_ports:
-            origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
-            if not origin_s_value:
-                return
-        # cli config set cluster-node-timeout 2000
-        logger.debug('set cluster node time out 2000 for create')
-        center.cli_config_set_all(key, '2000', s_hosts, s_ports)
+        origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
+        if not origin_s_value:
+            msg = "RedisConfigKeyError: '{}'".format(key)
+            logger.warning(msg)
+        if origin_s_value:
+            # cli config set cluster-node-timeout 2000
+            logger.debug('set cluster node time out 2000 for create')
+            center.cli_config_set_all(key, '2000', s_hosts, s_ports)
         # create
         center.replicate()
-        # cli config restore cluster-node-timeout
-        logger.debug('restore cluster node time out')
-        center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+        if origin_s_value:
+            # cli config restore cluster-node-timeout
+            logger.debug('restore cluster node time out')
+            center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
 
     def _print(self, text):
         if self._print_mode == 'screen':
