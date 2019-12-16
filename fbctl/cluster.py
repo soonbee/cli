@@ -1,6 +1,7 @@
 import os
 from functools import reduce
 
+from fbctl import color
 from fbctl import config
 from fbctl import cluster_util
 from fbctl.center import Center
@@ -314,6 +315,73 @@ class Cluster(object):
             # cli config restore cluster-node-timeout
             logger.debug('restore cluster node time out')
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+
+    def tree(self):
+        center = Center()
+        center.update_ip_port()
+        cluster_nodes = center.get_cluster_nodes()
+        logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
+
+        nodes_info = cluster_nodes.split('\n')
+        master_nodes_info = []
+        slave_nodes_info = []
+        for line in nodes_info:
+            if 'master' in line:
+                master_nodes_info.append(line)
+            if 'slave' in line:
+                slave_nodes_info.append(line)
+
+        master_node_list = []
+        for line in master_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = center.ping(splited[1])
+                if exit_code == 124:
+                    status = 'timeout'
+            master_node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+
+        for line in slave_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = center.ping(splited[1])
+                if exit_code == 124:
+                    status = 'timeout'
+            for master_node in master_node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+
+        output_msg = []
+        for master_node in master_node_list:
+            addr = master_node['addr']
+            status = master_node['status']
+            msg = '{}({})'.format(addr, status)
+            if status == 'disconnected':
+                msg = color.red(msg)
+            if status == 'timeout':
+                msg = color.yellow(msg)
+            output_msg.append(msg)
+            for slave_node in master_node['slaves']:
+                addr = slave_node['addr']
+                status = slave_node['status']
+                msg = '{}({})'.format(addr, status)
+                if status == 'disconnected':
+                    msg = color.red(msg)
+                if status == 'timeout':
+                    msg = color.yellow(msg)
+                output_msg.append('|__ ' + msg)
+            output_msg.append('')
+        print('\n'.join(output_msg))
 
     def _print(self, text):
         if self._print_mode == 'screen':

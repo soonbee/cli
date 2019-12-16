@@ -20,7 +20,6 @@ from fbctl.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,
-    FileNotExistError,
     ClusterRedisError,
     ClusterNotExistError,
 )
@@ -991,3 +990,75 @@ class Center(object):
                 if stdout.decode('utf-8').strip() != 'OK':
                     success = False
         return success
+
+    def get_cluster_nodes(self):
+        lib_path = config.get_ld_library_path(self.cluster_id)
+        path_of_fb = config.get_path_of_fb(self.cluster_id)
+        sr2_redis_bin = path_of_fb['sr2_redis_bin']
+        env_cmd = [
+            'GLOBIGNORE=*;',
+            'export LD_LIBRARY_PATH={};'.format(lib_path['ld_library_path']),
+            'export DYLD_LIBRARY_PATH={};'.format(
+                lib_path['dyld_library_path']
+            ),
+        ]
+        redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
+        sub_cmd = 'cluster nodes 2>&1'
+        for host in self.master_host_list:
+            for port in self.master_port_list:
+                command = '{} timeout {} {} -h {} -p {} {}'.format(
+                    ' '.join(env_cmd),
+                    2,
+                    redis_cli_cmd,
+                    host,
+                    port,
+                    sub_cmd,
+                )
+                try:
+                    ret = subprocess.check_output(command, shell=True)
+                    return ret
+                except Exception as ex:
+                    logger.debug(ex)
+        for host in self.slave_host_list:
+            for port in self.slave_port_list:
+                command = '{} {} -h {} -p {} {}'.format(
+                    ' '.join(env_cmd),
+                    redis_cli_cmd,
+                    host,
+                    port,
+                    sub_cmd,
+                )
+                try:
+                    ret = subprocess.check_output(command, shell=True)
+                    return ret
+                except Exception as ex:
+                    logger.debug(ex)
+
+    def ping(self, addr, t=2, c=2):
+        host, port = addr.split(':')
+        lib_path = config.get_ld_library_path(self.cluster_id)
+        path_of_fb = config.get_path_of_fb(self.cluster_id)
+        sr2_redis_bin = path_of_fb['sr2_redis_bin']
+        env_cmd = [
+            'GLOBIGNORE=*;',
+            'export LD_LIBRARY_PATH={};'.format(lib_path['ld_library_path']),
+            'export DYLD_LIBRARY_PATH={};'.format(
+                lib_path['dyld_library_path']
+            ),
+        ]
+        redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
+        sub_cmd = 'ping > /dev/null'
+        exit_code = -1
+        while c > 0 and exit_code is not 0:
+            c -= 1
+            command = '{} timeout {} {} -h {} -p {} {}'.format(
+                ' '.join(env_cmd),
+                t,
+                redis_cli_cmd,
+                host,
+                port,
+                sub_cmd,
+            )
+            exit_code = subprocess.call(command, shell=True)
+            logger.debug('ping {}: {}'.format(addr, exit_code))
+        return exit_code
