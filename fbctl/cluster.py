@@ -1,5 +1,6 @@
 import os
 from functools import reduce
+import time
 
 from fbctl import color
 from fbctl import config
@@ -315,6 +316,42 @@ class Cluster(object):
             # cli config restore cluster-node-timeout
             logger.debug('restore cluster node time out')
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+
+    def failback(self):
+        center = Center()
+        center.update_ip_port()
+        m_hosts = center.master_host_list
+        m_ports = center.master_port_list
+        s_hosts = center.slave_host_list
+        s_ports = center.slave_port_list
+        disconnected_list = []
+        paused_list = []
+        for host in m_hosts:
+            for port in m_ports:
+                exit_code = center.ping('{}:{}'.format(host, port))
+                if exit_code == 1:
+                    disconnected_list.append((host, port))
+                if exit_code == 124:
+                    paused_list.append((host, port))
+        for host in s_hosts:
+            for port in s_ports:
+                exit_code = center.ping('{}:{}'.format(host, port))
+                if exit_code == 1:
+                    disconnected_list.append((host, port))
+                if exit_code == 124:
+                    paused_list.append((host, port))
+        current_time = time.strftime("%Y%m%d-%H%M", time.gmtime())
+        for host, port in paused_list:
+            print('stop {}:{}...'.format(host, port))
+            center.stop_redis_process(host, [port])
+            print('OK')
+            print('run {}:{}...'.format(host, port))
+            center.run_redis_process(host, [port], False, current_time)
+            print('OK')
+        for host, port in disconnected_list:
+            print('run {}:{}...'.format(host, port))
+            center.run_redis_process(host, [port], False, current_time)
+            print('OK')
 
     def tree(self):
         center = Center()
