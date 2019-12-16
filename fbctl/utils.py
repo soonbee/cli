@@ -265,3 +265,9 @@ def is_number(target):
     except AttributeError:
         pass
     return target.isdecimal()
+
+
+def to_str(target):
+    if isinstance(target, bytes):
+        target = target.decode('utf-8')
+    return str(target)

@@ -1016,7 +1016,7 @@ class Center(object):
                 )
                 try:
                     ret = subprocess.check_output(command, shell=True)
-                    return ret
+                    return utils.to_str(ret)
                 except Exception as ex:
                     logger.debug(ex)
         for host in self.slave_host_list:
@@ -1030,11 +1030,17 @@ class Center(object):
                 )
                 try:
                     ret = subprocess.check_output(command, shell=True)
-                    return ret
+                    return utils.to_str(ret)
                 except Exception as ex:
                     logger.debug(ex)
 
     def ping(self, addr, t=2, c=2):
+        """ping to redis
+        return exit status
+        0: PONG
+        1: connection refused
+        124: timeout
+        """
         host, port = addr.split(':')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
@@ -1047,7 +1053,7 @@ class Center(object):
             ),
         ]
         redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
-        sub_cmd = 'ping > /dev/null'
+        sub_cmd = 'ping > /dev/null 2>&1'
         exit_code = -1
         while c > 0 and exit_code is not 0:
             c -= 1
