@@ -338,13 +338,14 @@ class Cluster(object):
             if status == 'connected':
                 exit_code = center.ping(splited[1])
                 if exit_code == 124:
-                    status = 'timeout'
+                    status = 'paused'
             master_node_list.append({
                 "node_id": splited[0],
                 "addr": splited[1],
                 "status": status,
                 "slaves": []
             })
+        master_node_list.sort(key=lambda node: node['addr'])
 
         for line in slave_nodes_info:
             status = 'disconnected' if 'disconnected' in line else 'connected'
@@ -352,7 +353,7 @@ class Cluster(object):
             if status == 'connected':
                 exit_code = center.ping(splited[1])
                 if exit_code == 124:
-                    status = 'timeout'
+                    status = 'paused'
             for master_node in master_node_list:
                 if master_node["node_id"] in line:
                     master_node["slaves"].append({
@@ -368,7 +369,7 @@ class Cluster(object):
             msg = '{}({})'.format(addr, status)
             if status == 'disconnected':
                 msg = color.red(msg)
-            if status == 'timeout':
+            if status == 'paused':
                 msg = color.yellow(msg)
             output_msg.append(msg)
             for slave_node in master_node['slaves']:
@@ -377,7 +378,7 @@ class Cluster(object):
                 msg = '{}({})'.format(addr, status)
                 if status == 'disconnected':
                     msg = color.red(msg)
-                if status == 'timeout':
+                if status == 'paused':
                     msg = color.yellow(msg)
                 output_msg.append('|__ ' + msg)
             output_msg.append('')
