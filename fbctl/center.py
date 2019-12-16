@@ -1004,11 +1004,12 @@ class Center(object):
         ]
         redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
         sub_cmd = 'cluster nodes 2>&1'
+        t = 2
         for host in self.master_host_list:
             for port in self.master_port_list:
                 command = '{} timeout {} {} -h {} -p {} {}'.format(
                     ' '.join(env_cmd),
-                    2,
+                    t,
                     redis_cli_cmd,
                     host,
                     port,
@@ -1021,8 +1022,9 @@ class Center(object):
                     logger.debug(ex)
         for host in self.slave_host_list:
             for port in self.slave_port_list:
-                command = '{} {} -h {} -p {} {}'.format(
+                command = '{} timeout {} {} -h {} -p {} {}'.format(
                     ' '.join(env_cmd),
+                    t,
                     redis_cli_cmd,
                     host,
                     port,
@@ -1033,6 +1035,11 @@ class Center(object):
                     return utils.to_str(ret)
                 except Exception as ex:
                     logger.debug(ex)
+        msg = [
+            'All redis is disconnected or paused.',
+            "Retry or execute command 'cluster failback'."
+        ]
+        raise ClusterRedisError('\n'.join(msg))
 
     def ping(self, addr, t=2, c=2):
         """ping to redis
