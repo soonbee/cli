@@ -1075,3 +1075,29 @@ class Center(object):
             exit_code = subprocess.call(command, shell=True)
             logger.debug('ping {}: {}'.format(addr, exit_code))
         return exit_code
+
+    def run_failover(self, addr, take_over=False):
+        host, port = addr.split(':')
+        lib_path = config.get_ld_library_path(self.cluster_id)
+        path_of_fb = config.get_path_of_fb(self.cluster_id)
+        sr2_redis_bin = path_of_fb['sr2_redis_bin']
+        env_cmd = [
+            'GLOBIGNORE=*;',
+            'export LD_LIBRARY_PATH={};'.format(lib_path['ld_library_path']),
+            'export DYLD_LIBRARY_PATH={};'.format(
+                lib_path['dyld_library_path']
+            ),
+        ]
+        redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
+        sub_cmd = 'cluster failover'
+        if take_over:
+            sub_cmd += ' takeover'
+        command = '{} {} -h {} -p {} {} > /dev/null'.format(
+            ' '.join(env_cmd),
+            redis_cli_cmd,
+            host,
+            port,
+            sub_cmd,
+        )
+        exit_code = subprocess.call(command, shell=True)
+        return exit_code
