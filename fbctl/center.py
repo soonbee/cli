@@ -1035,13 +1035,11 @@ class Center(object):
                     return utils.to_str(ret)
                 except Exception as ex:
                     logger.debug(ex)
-        msg = [
-            'All redis is disconnected or paused.',
-            "Retry or execute command 'cluster failback'."
-        ]
-        raise ClusterRedisError('\n'.join(msg))
+        msg = 'All redis is disconnected or paused.'
 
-    def ping(self, addr, t=2, c=2):
+        raise ClusterRedisError(msg)
+
+    def ping(self, addr, t=0.5, c=3):
         """ping to redis
         return exit status
         0: PONG

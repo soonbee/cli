@@ -355,41 +355,46 @@ class Cluster(object):
     def failback(self):
         center = Center()
         center.update_ip_port()
-        m_hosts = center.master_host_list
-        m_ports = center.master_port_list
-        s_hosts = center.slave_host_list
-        s_ports = center.slave_port_list
+        master_obj_list = self._get_master_obj_list()
         disconnected_list = []
         paused_list = []
-        for host in m_hosts:
-            for port in m_ports:
-                exit_code = center.ping('{}:{}'.format(host, port))
-                if exit_code == 1:
-                    disconnected_list.append((host, port))
-                if exit_code == 124:
-                    paused_list.append((host, port))
-        for host in s_hosts:
-            for port in s_ports:
-                exit_code = center.ping('{}:{}'.format(host, port))
-                if exit_code == 1:
-                    disconnected_list.append((host, port))
-                if exit_code == 124:
-                    paused_list.append((host, port))
+        for master in master_obj_list:
+            if master['status'] == 'disconnected':
+                disconnected_list.append(master['addr'])
+            if master['status'] == 'paused':
+                paused_list.append(master['addr'])
+            for slave in master['slaves']:
+                if slave['status'] == 'disconnected':
+                    disconnected_list.append(slave['addr'])
+                if slave['status'] == 'paused':
+                    paused_list.append(slave['addr'])
+        classified_disconnected_list = {}
+        classified_paused_list = {}
+        for disconnected in disconnected_list:
+            host, port = disconnected.split(':')
+            if host not in classified_disconnected_list:
+                classified_disconnected_list[host] = []
+            classified_disconnected_list[host].append(port)
+        for paused in paused_list:
+            host, port = paused.split(':')
+            if host not in classified_paused_list:
+                classified_paused_list[host] = []
+            classified_paused_list[host].append(port)
         current_time = time.strftime("%Y%m%d-%H%M", time.gmtime())
-        for host, port in paused_list:
-            print('stop {}:{}...'.format(host, port))
-            center.stop_redis_process(host, [port])
-            print('OK')
-            print('run {}:{}...'.format(host, port))
-            center.run_redis_process(host, [port], False, current_time)
-            print('OK')
-        for host, port in disconnected_list:
-            print('run {}:{}...'.format(host, port))
-            center.run_redis_process(host, [port], False, current_time)
-            print('OK')
+        for host, ports in classified_disconnected_list.items():
+            logger.info('run {}:{}'.format(host, '|'.join(ports)))
+            center.run_redis_process(host, ports, False, current_time)
+        for host, ports in classified_paused_list.items():
+            logger.info('restart {}:{}'.format(host, '|'.join(ports)))
+            center.stop_redis_process(host, ports)
+            center.run_redis_process(host, ports, False, current_time)
+        if not classified_disconnected_list and not classified_paused_list:
+            logger.info('All redis is alive')
 
     def tree(self):
-        master_node_list = self.get_master_obj_list()
+        """The results of 'cli cluster nodes' are displayed in tree format.
+        """
+        master_node_list = self._get_master_obj_list()
         output_msg = []
         for master_node in master_node_list:
             addr = master_node['addr']
