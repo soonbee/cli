@@ -318,12 +318,19 @@ class Cluster(object):
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
 
     def failover(self):
+        """Replace disconnected master with slave.
+
+        Replace disconnected master with slave.
+        If disconnected master comes back to live, it become slave.
+        """
         center = Center()
         center.update_ip_port()
-        master_obj_list = self.get_master_obj_list()
-        msg = '{} has no alive slave to proceed failover'
+        master_obj_list = self._get_master_obj_list()
+        msg = color.yellow('{} has no alive slave to proceed failover')
         for node in master_obj_list:
+            all_alive = True
             if node['status'] != 'connected':
+                all_alive = False
                 success = False
                 for slave in node['slaves']:
                     if slave['status'] == 'connected':
@@ -342,6 +349,8 @@ class Cluster(object):
                         break
                 if not success:
                     logger.info(msg.format(node['addr']))
+        if all_alive:
+            logger.info('All master is alive')
 
     def failback(self):
         center = Center()
@@ -403,7 +412,7 @@ class Cluster(object):
             output_msg.append('')
         logger.info(color.ENDC + '\n'.join(output_msg))
 
-    def get_master_obj_list(self):
+    def _get_master_obj_list(self):
         """get object list of master hosts
         return [
             {
