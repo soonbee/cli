@@ -1,6 +1,8 @@
 import os
 from functools import reduce
+import time
 
+from fbctl import color
 from fbctl import config
 from fbctl import cluster_util
 from fbctl.center import Center
@@ -314,6 +316,168 @@ class Cluster(object):
             # cli config restore cluster-node-timeout
             logger.debug('restore cluster node time out')
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+
+    def failover(self):
+        """Replace disconnected master with slave.
+
+        Replace disconnected master with slave.
+        If disconnected master comes back to live, it become slave.
+        """
+        center = Center()
+        center.update_ip_port()
+        master_obj_list = self._get_master_obj_list()
+        msg = color.yellow('{} has no alive slave to proceed failover')
+        for node in master_obj_list:
+            all_alive = True
+            if node['status'] != 'connected':
+                all_alive = False
+                success = False
+                for slave in node['slaves']:
+                    if slave['status'] == 'connected':
+                        logger.info('failover {} for {}'.format(
+                            slave['addr'],
+                            node['addr']
+                        ))
+                        exit_code = center.run_failover(
+                            slave['addr'],
+                            take_over=True
+                        )
+                        if exit_code is not 0:
+                            continue
+                        logger.info('OK')
+                        success = True
+                        break
+                if not success:
+                    logger.info(msg.format(node['addr']))
+        if all_alive:
+            logger.info('All master is alive')
+
+    def failback(self):
+        center = Center()
+        center.update_ip_port()
+        master_obj_list = self._get_master_obj_list()
+        disconnected_list = []
+        paused_list = []
+        for master in master_obj_list:
+            if master['status'] == 'disconnected':
+                disconnected_list.append(master['addr'])
+            if master['status'] == 'paused':
+                paused_list.append(master['addr'])
+            for slave in master['slaves']:
+                if slave['status'] == 'disconnected':
+                    disconnected_list.append(slave['addr'])
+                if slave['status'] == 'paused':
+                    paused_list.append(slave['addr'])
+        classified_disconnected_list = {}
+        classified_paused_list = {}
+        for disconnected in disconnected_list:
+            host, port = disconnected.split(':')
+            if host not in classified_disconnected_list:
+                classified_disconnected_list[host] = []
+            classified_disconnected_list[host].append(port)
+        for paused in paused_list:
+            host, port = paused.split(':')
+            if host not in classified_paused_list:
+                classified_paused_list[host] = []
+            classified_paused_list[host].append(port)
+        current_time = time.strftime("%Y%m%d-%H%M", time.gmtime())
+        for host, ports in classified_disconnected_list.items():
+            logger.info('run {}:{}'.format(host, '|'.join(ports)))
+            center.run_redis_process(host, ports, False, current_time)
+        for host, ports in classified_paused_list.items():
+            logger.info('restart {}:{}'.format(host, '|'.join(ports)))
+            center.stop_redis_process(host, ports)
+            center.run_redis_process(host, ports, False, current_time)
+        if not classified_disconnected_list and not classified_paused_list:
+            logger.info('All redis is alive')
+
+    def tree(self):
+        """The results of 'cli cluster nodes' are displayed in tree format.
+        """
+        master_node_list = self._get_master_obj_list()
+        output_msg = []
+        for master_node in master_node_list:
+            addr = master_node['addr']
+            status = master_node['status']
+            msg = '{}({})'.format(addr, status)
+            if status == 'disconnected':
+                msg = color.red(msg)
+            if status == 'paused':
+                msg = color.yellow(msg)
+            output_msg.append(msg)
+            for slave_node in master_node['slaves']:
+                addr = slave_node['addr']
+                status = slave_node['status']
+                msg = '{}({})'.format(addr, status)
+                if status == 'disconnected':
+                    msg = color.red(msg)
+                if status == 'paused':
+                    msg = color.yellow(msg)
+                output_msg.append('|__ ' + msg)
+            output_msg.append('')
+        logger.info(color.ENDC + '\n'.join(output_msg))
+
+    def _get_master_obj_list(self):
+        """get object list of master hosts
+        return [
+            {
+                node_id: string
+                addr: string(host:port)
+                status: string(connected / disconnected / paused
+                slaves: [
+                    {
+                        node_id: string
+                        addr: string(host:port)
+                        status: string(connected / disconnected / paused
+                    }
+                ]
+            }
+        ]
+        """
+        center = Center()
+        center.update_ip_port()
+        cluster_nodes = center.get_cluster_nodes()
+        logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
+        nodes_info = cluster_nodes.split('\n')
+        master_nodes_info = []
+        slave_nodes_info = []
+        for line in nodes_info:
+            if 'master' in line:
+                master_nodes_info.append(line)
+            if 'slave' in line:
+                slave_nodes_info.append(line)
+
+        master_node_list = []
+        for line in master_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = center.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            master_node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+        master_node_list.sort(key=lambda node: node['addr'])
+
+        for line in slave_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = center.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            for master_node in master_node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+        return master_node_list
 
     def _print(self, text):
         if self._print_mode == 'screen':
