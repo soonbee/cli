@@ -268,6 +268,10 @@ class Cluster(object):
         logger.debug('add_slave')
         center = Center()
         center.update_ip_port()
+        if not center.slave_host_list:
+            raise ClusterRedisError('Slave host cannot empty')
+        if not center.slave_port_list:
+            raise ClusterRedisError('Slave port cannot empty')
         # check
         s_hosts = center.slave_host_list
         s_ports = center.slave_port_list
