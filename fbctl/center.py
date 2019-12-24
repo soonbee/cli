@@ -419,7 +419,7 @@ class Center(object):
         if skip:
             return True
         msg = [
-            'Do you want to proceed with the create ',
+            'Do you want to proceed with the replicate ',
             'according to the above information?',
         ]
         yes = ask_util.askBool(''.join(msg), ['y', 'n'])
@@ -1036,7 +1036,6 @@ class Center(object):
                 except Exception as ex:
                     logger.debug(ex)
         msg = 'All redis is disconnected or paused.'
-
         raise ClusterRedisError(msg)
 
     def ping(self, addr, t=0.5, c=3):
