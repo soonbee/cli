@@ -262,12 +262,19 @@ class Cluster(object):
         """
         rebalance_cluster_cmd(ip, port)
 
-    def add_slave(self):
+    def add_slave(self, yes=False):
         """Add slaves to cluster additionally
         """
         logger.debug('add_slave')
+        if not isinstance(yes, bool):
+            logger.error("option '--yes' can use only 'True' or 'False'")
+            return
         center = Center()
         center.update_ip_port()
+        if not center.slave_host_list:
+            raise ClusterRedisError('Slave host cannot empty')
+        if not center.slave_port_list:
+            raise ClusterRedisError('Slave port cannot empty')
         # check
         s_hosts = center.slave_host_list
         s_ports = center.slave_port_list
@@ -288,6 +295,12 @@ class Cluster(object):
                 "redis 'SLAVE' processes is {}".format(slave_alive_count)
             ]
             raise FlashbaseError(12, ''.join(msg))
+
+        # confirm info
+        result = center.confirm_node_port_info(skip=yes)
+        if not result:
+            logger.warn('Cancel add-slave')
+            return
         # clean
         center.cluster_clean(master=False)
         # backup logs

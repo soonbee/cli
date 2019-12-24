@@ -602,15 +602,16 @@ def get_props_as_dict(props_path):
                     cmd = ' '.join(cmd)
                     logger.debug('subprocess cmd: {}'.format(cmd))
                     value = subprocess.check_output(cmd, shell=True)
-                    value = value.strip().decode('utf-8')
+                    value = to_str(value.strip())
                     logger.debug('subprocess result: {}'.format(value))
                     value = value.split(' ')
                     value = map(lambda x: int(x) if is_number(x) else x, value)
+                    value = filter(lambda x: bool(x), value)
                     value = list(value)
                 else:
                     cmd = 'echo {}'.format(value)
                     value = subprocess.check_output(cmd, shell=True)
-                    value = value.strip().decode('utf-8')
+                    value = to_str(value.strip())
                     value = int(value) if is_number(value) else value
                 ret[key] = value
             except subprocess.CalledProcessError:
@@ -676,6 +677,12 @@ def is_number(target):
     except AttributeError:
         pass
     return target.isdecimal()
+
+
+def to_str(target):
+    if isinstance(target, bytes):
+        target = target.decode('utf-8')
+    return str(target)
 
 
 def get_tmp_thriftserver_props_path():
