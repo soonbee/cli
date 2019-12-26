@@ -271,17 +271,13 @@ class Cluster(object):
             return
         center = Center()
         center.update_ip_port()
-        if not center.slave_host_list:
-            raise ClusterRedisError('Slave host cannot empty')
-        if not center.slave_port_list:
-            raise ClusterRedisError('Slave port cannot empty')
         # check
         s_hosts = center.slave_host_list
         s_ports = center.slave_port_list
         if not s_hosts:
-            raise PropsKeyError('sr2_redis_slave_hosts')
+            raise ClusterRedisError('Slave host cannot empty')
         if not s_ports:
-            raise PropsKeyError('sr2_redis_slave_ports')
+            raise ClusterRedisError('Slave port cannot empty')
         success = center.check_hosts_connection(hosts=s_hosts)
         if not success:
             return
