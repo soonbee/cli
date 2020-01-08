@@ -347,11 +347,11 @@ class Cluster(object):
                             slave['addr'],
                             node['addr']
                         ))
-                        exit_code = center.run_failover(
+                        stdout = center.run_failover(
                             slave['addr'],
                             take_over=True
                         )
-                        if exit_code is not 0:
+                        if stdout is not 'OK':
                             continue
                         logger.info('OK')
                         success = True

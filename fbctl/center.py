@@ -1096,6 +1096,7 @@ class Center(object):
         return exit_code
 
     def run_failover(self, addr, take_over=False):
+        logger.debug('run failover {}'.format(addr))
         host, port = addr.split(':')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
@@ -1111,12 +1112,14 @@ class Center(object):
         sub_cmd = 'cluster failover'
         if take_over:
             sub_cmd += ' takeover'
-        command = '{} {} -h {} -p {} {} > /dev/null'.format(
+        command = '{} {} -h {} -p {} {}'.format(
             ' '.join(env_cmd),
             redis_cli_cmd,
             host,
             port,
             sub_cmd,
         )
-        exit_code = subprocess.call(command, shell=True)
-        return exit_code
+        stdout = subprocess.check_output(command, shell=True)
+        stdout = utils.to_str(stdout)
+        logger.debug('{} failover stdout: {}'.format(addr, stdout))
+        return stdout.strip()
