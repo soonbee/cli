@@ -34,6 +34,7 @@ from fbctl.center import Center
 from fbctl.conf import Conf
 from fbctl.thriftserver import ThriftServer
 from fbctl.deploy_util import DeployUtil, DEPLOYED, PENDING
+from fbctl.rediscli import RedisCliConfig
 from fbctl.exceptions import (
     SSHConnectionError,
     HostConnectionError,
@@ -75,7 +76,12 @@ def run_monitor(n=10):
 
 
 # def run_deploy_v3(cluster_id=None, history_save=True, force=False):
-def run_deploy(cluster_id=None, history_save=True, clean=False):
+def run_deploy(
+        cluster_id=None,
+        history_save=True,
+        clean=False,
+        strategy="shutdown"
+):
     # validate cluster id
     if cluster_id is None:
         cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
@@ -99,7 +105,125 @@ def run_deploy(cluster_id=None, history_save=True, clean=False):
     #     logger.error("option '--force' can use only 'True' or 'False'")
     #     return
     # logger.debug("option '--force': {}".format(force))
+    strategy_list = ["shutdown", "zero-downtime"]
+    if strategy not in strategy_list:
+        logger.error("DeployStrategyError: '{}'. Select in {}".format(
+            strategy,
+            strategy_list
+        ))
+        return
+    if strategy == "zero-downtime":
+        _deploy_zero_downtime(cluster_id)
+        return
     _deploy(cluster_id, history_save, clean)
+
+
+def _deploy_zero_downtime(cluster_id):
+    logger.debug("zero downtime update cluster {}".format(cluster_id))
+    center = Center()
+    center.update_ip_port()
+    m_hosts = center.master_host_list
+    m_ports = center.master_port_list
+    s_hosts = center.slave_host_list
+    s_ports = center.slave_port_list
+    path_of_fb = config.get_path_of_fb(cluster_id)
+
+    # check slave is alive
+
+    # select installer
+    installer_path = ask_util.installer()
+    installer_name = os.path.basename(installer_path)
+
+    # backup
+    current_time = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+    conf_backup_dir = 'cluster_{}_conf_bak_{}'.format(cluster_id, current_time)
+    cluster_backup_dir = 'cluster_{}_bak_{}'.format(cluster_id, current_time)
+    local_ip = config.get_local_ip()
+
+    # backup conf
+    center.conf_backup(local_ip, cluster_id, conf_backup_dir)
+
+    # backup cluster
+    for host in s_hosts:
+        cluster_path = path_of_fb['cluster_path']
+        client = net.get_ssh(host)
+        center.cluster_backup(host, cluster_id, cluster_backup_dir)
+        client.close()
+
+    # transfer & install
+    logger.info('Transfer installer and execute...')
+    for host in m_hosts:
+        logger.info(' - {}'.format(host))
+        client = net.get_ssh(host)
+        cmd = 'mkdir -p {0} && touch {0}/.deploy.state'.format(cluster_path)
+        net.ssh_execute(client=client, command=cmd)
+        client.close()
+        DeployUtil().transfer_installer(host, cluster_id, installer_path)
+        try:
+            DeployUtil().install(host, cluster_id, installer_name)
+        except SSHCommandError as ex:
+            msg = "Fail to execute installer '{}'".format(installer_path)
+            logger.error(msg)
+            logger.exception(ex)
+            return
+
+    # restore conf
+    center.conf_restore(local_ip, cluster_id, conf_backup_dir)
+
+    # set deploy state complete
+    for node in m_hosts:
+        path_of_fb = config.get_path_of_fb(cluster_id)
+        cluster_path = path_of_fb['cluster_path']
+        client = net.get_ssh(node)
+        command = 'rm -rf {}'.format(os.path.join(cluster_path, '.deploy.state'))
+        net.ssh_execute(client=client, command=command)
+        client.close()
+
+    # restart slave
+    center.stop_redis(master=False)
+    center.configure_redis(master=False)
+    center.sync_conf()
+    center.start_redis_process(master=False)
+    center.wait_until_all_redis_process_up()
+
+    key = 'cluster-node-timeout'
+    origin_m_value = center.cli_config_get(key, m_hosts[0], m_ports[0])
+    origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
+    RedisCliConfig().set(key, '2000', all=True)
+
+    # cluster failover (with no option)
+    logger.info("Replace master to slave")
+    try_count = 0
+    while try_count < 10:
+        try_count += 1
+        success = True
+        for host in s_hosts:
+            for port in s_ports:
+                # In some cases, the cluster failover is not complete
+                # even if stdout is OK
+                # If redis changed to master completely,
+                # return 'ERR You should send CLUSTER FAILOVER to a slave'
+                stdout = center.run_failover("{}:{}".format(host, port))
+                logger.debug("failover {}:{} {}".format(host, port, stdout))
+                if stdout != "ERR You should send CLUSTER FAILOVER to a slave":
+                    success = False
+        if success:
+            break
+        logger.info("retry: {}".format(try_count))
+        time.sleep(5)
+
+    center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
+    center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+    if not success:
+        logger.error("Fail to cluster failover")
+        return
+
+    # restart master (current slave)
+    center.stop_redis(slave=False)
+    center.configure_redis(slave=False)
+    center.sync_conf()
+    center.start_redis_process(slave=False)
+    center.wait_until_all_redis_process_up()
 
 
 def _deploy(cluster_id, history_save, clean):

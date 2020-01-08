@@ -320,7 +320,7 @@ class Center(object):
         logger.info('OK, {}'.format(tag))
 
     def conf_restore(self, host, cluster_id, tag):
-        logger.debug('Restore conf to cluster {}...'.format(cluster_id))
+        logger.info('Restore conf to cluster {}...'.format(cluster_id))
         # prepare
         path_of_fb = config.get_path_of_fb(cluster_id)
         path_of_cli = config.get_path_of_cli(cluster_id)
