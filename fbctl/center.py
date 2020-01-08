@@ -437,32 +437,54 @@ class Center(object):
         net.ssh_execute(client, command, allow_status=[-1, 0, 1, 2, 123, 130])
         client.close()
 
-    def stop_redis(self, force=False):
+    def stop_redis(self, force=False, master=True, slave=True):
         """Stop redis
 
         :param force: If true, send SIGKILL. If not, send SIGINT
         """
         logger.debug('stop_redis')
-        logger.info('Stopping master cluster of redis...')
-        if self.slave_host_list:
+        success = False
+        if not self.slave_host_list:
+            slave = False
+        if slave:
             logger.info('Stopping slave cluster of redis...')
-        total_count = len(self.master_host_list) * len(self.master_port_list)
-        total_count += len(self.slave_host_list) * len(self.slave_port_list)
-        max_try_count = 10
-        while max_try_count > 0:
-            alive_count = self.get_alive_all_redis_count()
-            logger.info('cur: {} / total: {}'.format(alive_count, total_count))
-            if alive_count <= 0:
-                logger.info('Complete all redis process down')
-                return True
-            max_try_count -= 1
-            if max_try_count % 3 == 0:
-                for host in self.master_host_list:
-                    self.stop_redis_process(host, self.master_port_list, force)
-                for host in self.slave_host_list:
-                    self.stop_redis_process(host, self.slave_port_list, force)
-            time.sleep(1)
-        raise ClusterRedisError('Fail to stop redis: max try exceed')
+            s_ports = self.slave_port_list
+            s_count = len(self.slave_host_list) * len(s_ports)
+            max_try_count = 10
+            while max_try_count > 0:
+                alive_count = self.get_alive_slave_redis_count()
+                logger.info('cur: {} / total: {}'.format(alive_count, s_count))
+                if alive_count <= 0:
+                    logger.info('Complete all slave redis process down')
+                    success = True
+                    break
+                max_try_count -= 1
+                if max_try_count % 3 == 0:
+                    for host in self.slave_host_list:
+                        self.stop_redis_process(host, s_ports, force)
+                time.sleep(1)
+        if slave and not success:
+            raise ClusterRedisError('Fail to stop redis: max try exceed')
+        success = False
+        if master:
+            logger.info('Stopping master cluster of redis...')
+            m_ports = self.master_port_list
+            m_count = len(self.master_host_list) * len(m_ports)
+            max_try_count = 10
+            while max_try_count > 0:
+                alive_count = self.get_alive_master_redis_count()
+                logger.info('cur: {} / total: {}'.format(alive_count, m_count))
+                if alive_count <= 0:
+                    logger.info('Complete all master redis process down')
+                    success = True
+                    break
+                max_try_count -= 1
+                if max_try_count % 3 == 0:
+                    for host in self.master_host_list:
+                        self.stop_redis_process(host, m_ports, force)
+                time.sleep(1)
+        if master and not success:
+            raise ClusterRedisError('Fail to stop redis: max try exceed')
 
     def create_redis_data_directory(self, master=True, slave=True):
         """ create directory SR2_REDIS_DATA, SR2_FLASH_DB_PATH
