@@ -1123,3 +1123,81 @@ class Center(object):
         stdout = utils.to_str(stdout)
         logger.debug('{} failover stdout: {}'.format(addr, stdout))
         return stdout.strip()
+
+    def get_master_obj_list(self):
+        """get object list of master hosts
+        return [
+            {
+                node_id: string
+                addr: string(host:port)
+                status: string(connected / disconnected / paused
+                slaves: [
+                    {
+                        node_id: string
+                        addr: string(host:port)
+                        status: string(connected / disconnected / paused
+                    }
+                ]
+            }
+        ]
+        """
+        cluster_nodes = self.get_cluster_nodes()
+        logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
+        nodes_info = cluster_nodes.split('\n')
+        master_nodes_info = []
+        slave_nodes_info = []
+        for line in nodes_info:
+            if 'master' in line:
+                master_nodes_info.append(line)
+            if 'slave' in line:
+                slave_nodes_info.append(line)
+
+        master_node_list = []
+        for line in master_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = self.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            master_node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+        master_node_list.sort(key=lambda node: node['addr'])
+
+        for line in slave_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = self.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            for master_node in master_node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+        master_node_list.sort(key=lambda node: node['addr'].split(':')[1])
+        for master in master_node_list:
+            master["slaves"].sort(key=lambda node: node['addr'].split(':')[1])
+        return master_node_list
+
+    def check_all_master_have_alive_slave(self):
+        master_obj_list = self.get_master_obj_list()
+        slaves_for_failover = []
+        for master in master_obj_list:
+            no_slave = True
+            for slave in master['slaves']:
+                if slave['status'] == 'connected':
+                    slaves_for_failover.append(slave['addr'])
+                    no_slave = False
+                    break
+            if no_slave:
+                msg = 'Not exist alive slave: {}'.format(master['addr'])
+                raise ClusterRedisError(msg)
+        return slaves_for_failover
