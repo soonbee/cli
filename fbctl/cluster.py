@@ -37,56 +37,72 @@ class Cluster(object):
     def __init__(self, print_mode='screen'):
         self._print_mode = print_mode
 
-    def stop(self, force=False):
+    def stop(self, force=False, master=True, slave=True):
         """Stop cluster
         """
         if not isinstance(force, bool):
             logger.error("option '--force' can use only 'True' or 'False'")
+            return
+        if not isinstance(master, bool):
+            logger.error("option '--master' can use only 'True' or 'False'")
+            return
+        if not isinstance(slave, bool):
+            logger.error("option '--slave' can use only 'True' or 'False'")
+            return
         center = Center()
         center.update_ip_port()
         success = center.check_hosts_connection()
         if not success:
             return
-        center.stop_redis(force)
+        center.stop_redis(force, master=master, slave=slave)
 
-    def start(self, profile=False):
+    def start(self, profile=False, master=True, slave=True):
         """Start cluster
         """
         logger.debug("command 'cluster start'")
         if not isinstance(profile, bool):
             logger.error("option '--profile' can use only 'True' or 'False'")
+            return
+        if not isinstance(master, bool):
+            logger.error("option '--master' can use only 'True' or 'False'")
+            return
+        if not isinstance(slave, bool):
+            logger.error("option '--slave' can use only 'True' or 'False'")
+            return
         center = Center()
         center.update_ip_port()
         success = center.check_hosts_connection()
         if not success:
             return
         center.ensure_cluster_exist()
-        master_alive_count = center.get_alive_master_redis_count()
-        if master_alive_count > 0:
-            msg = [
-                'Fail to start master nodes... ',
-                'Must be checked running master processes!\n',
-                'We estimate that ',
-                "redis 'MASTER' processes is {}".format(master_alive_count)
-            ]
-            raise FlashbaseError(11, ''.join(msg))
+        if master:
+            master_alive_count = center.get_alive_master_redis_count()
+            if master_alive_count > 0:
+                msg = [
+                    'Fail to start master nodes... ',
+                    'Must be checked running master processes!\n',
+                    'We estimate that ',
+                    "redis 'MASTER' processes is {}".format(master_alive_count)
+                ]
+                raise FlashbaseError(11, ''.join(msg))
         slave_alive_count = center.get_alive_slave_redis_count()
-        if slave_alive_count > 0:
-            msg = [
-                'Fail to start slave nodes... ',
-                'Must be checked running slave processes!\n',
-                'We estimate that ',
-                "redis 'SLAVE' processes is {}".format(slave_alive_count)
-            ]
-            raise FlashbaseError(12, ''.join(msg))
-        center.backup_server_logs()
+        if slave:
+            if slave_alive_count > 0:
+                msg = [
+                    'Fail to start slave nodes... ',
+                    'Must be checked running slave processes!\n',
+                    'We estimate that ',
+                    "redis 'SLAVE' processes is {}".format(slave_alive_count)
+                ]
+                raise FlashbaseError(12, ''.join(msg))
+        center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()
 
         # equal to cluster.configure()
         center.configure_redis()
         center.sync_conf(show_result=True)
 
-        center.start_redis_process(profile)
+        center.start_redis_process(profile, master=master, slave=slave)
         center.wait_until_all_redis_process_up()
 
     def create(self, yes=False):
