@@ -422,6 +422,9 @@ class Cluster(object):
         center = Center()
         center.update_ip_port()
         master_node_list = center.get_master_obj_list()
+        if len(master_node_list) <= 1:
+            logger.error("Need to create cluster")
+            return
         output_msg = []
         for master_node in master_node_list:
             addr = master_node['addr']
