@@ -1152,6 +1152,9 @@ class Center(object):
             if 'slave' in line:
                 slave_nodes_info.append(line)
 
+        if len(master_nodes_info) <= 1:
+            raise ClusterRedisError("Need to create cluster")
+
         master_node_list = []
         for line in master_nodes_info:
             status = 'disconnected' if 'disconnected' in line else 'connected'
