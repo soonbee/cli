@@ -80,7 +80,8 @@ def run_deploy(
         cluster_id=None,
         history_save=True,
         clean=False,
-        strategy="none"
+        strategy="none",
+        refailover=False
 ):
     # validate cluster id
     if cluster_id is None:
@@ -113,12 +114,12 @@ def run_deploy(
         ))
         return
     if strategy == "zero-downtime":
-        _deploy_zero_downtime(cluster_id)
+        _deploy_zero_downtime(cluster_id, refailover)
         return
     _deploy(cluster_id, history_save, clean)
 
 
-def _deploy_zero_downtime(cluster_id):
+def _deploy_zero_downtime(cluster_id, refailover=False):
     logger.debug("zero downtime update cluster {}".format(cluster_id))
     center = Center()
     center.update_ip_port()
@@ -239,25 +240,65 @@ def _deploy_zero_downtime(cluster_id):
     center.start_redis_process(slave=False)
     center.wait_until_all_redis_process_up()
 
-    # change host info of redis.properties
-    props_path = path_of_fb['redis_properties']
-    after_m_ports = list(set(map(
-        lambda x: int(x.split(':')[1]),
-        slaves_for_failover
-    )))
-    after_s_ports = list(set(s_ports + m_ports) - set(after_m_ports))
-    logger.debug("master port {}".format(m_ports))
-    logger.debug("slave port {}".format(s_ports))
-    key = 'sr2_redis_master_ports'
-    logger.debug("after master port {}".format(after_m_ports))
-    value = cluster_util.convert_list_2_seq(after_m_ports)
-    logger.debug("converted {}".format(value))
-    config.set_props(props_path, key, value)
-    key = 'sr2_redis_slave_ports'
-    logger.debug("after slave port {}".format(after_s_ports))
-    value = cluster_util.convert_list_2_seq(after_s_ports)
-    logger.debug("converted {}".format(value))
-    config.set_props(props_path, key, value)
+    if not refailover:
+        # change host info of redis.properties
+        props_path = path_of_fb['redis_properties']
+        after_m_ports = list(set(map(
+            lambda x: int(x.split(':')[1]),
+            slaves_for_failover
+        )))
+        after_s_ports = list(set(s_ports + m_ports) - set(after_m_ports))
+        logger.debug("master port {}".format(m_ports))
+        logger.debug("slave port {}".format(s_ports))
+        key = 'sr2_redis_master_ports'
+        logger.debug("after master port {}".format(after_m_ports))
+        value = cluster_util.convert_list_2_seq(after_m_ports)
+        logger.debug("converted {}".format(value))
+        config.set_props(props_path, key, value)
+        key = 'sr2_redis_slave_ports'
+        logger.debug("after slave port {}".format(after_s_ports))
+        value = cluster_util.convert_list_2_seq(after_s_ports)
+        logger.debug("converted {}".format(value))
+        config.set_props(props_path, key, value)
+
+    if refailover:
+        key = 'cluster-node-timeout'
+        origin_m_value = center.cli_config_get(key, m_hosts[0], m_ports[0])
+        origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
+        logger.info('config set: cluster-node-timeout 2000')
+        RedisCliConfig().set(key, '2000', all=True)
+
+        # re-failover
+        logger.info("Replace master to slave")
+        logger.debug(m_hosts)
+        logger.debug(m_ports)
+        try_count = 0
+        addrs = []
+        for host in m_hosts:
+            for port in m_ports:
+                addrs.append("{}:{}".format(host, port))
+        while try_count < 10:
+            try_count += 1
+            success = True
+            for addr in addrs:
+                # In some cases, the cluster failover is not complete
+                # even if stdout is OK
+                # If redis changed to master completely,
+                # return 'ERR You should send CLUSTER FAILOVER to a slave'
+                stdout = center.run_failover(addr)
+                logger.debug("failover {} {}".format(addr, stdout))
+                if stdout != "ERR You should send CLUSTER FAILOVER to a slave":
+                    success = False
+            if success:
+                break
+            logger.info("retry: {}".format(try_count))
+            time.sleep(5)
+        logger.info('restore config: cluster-node-timeout')
+        center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
+        center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
+        if not success:
+            logger.error("Fail to cluster failover")
+            return
 
 
 def _deploy(cluster_id, history_save, clean):

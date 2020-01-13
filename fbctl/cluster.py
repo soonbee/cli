@@ -350,7 +350,7 @@ class Cluster(object):
         center = Center()
         center.update_ip_port()
         master_obj_list = center.get_master_obj_list()
-        msg = color.yellow('{} has no alive slave to proceed failover')
+        msg = '{} has no alive slave to proceed failover'
         all_alive = True
         for node in master_obj_list:
             if node['status'] != 'connected':
@@ -372,7 +372,7 @@ class Cluster(object):
                         success = True
                         break
                 if not success:
-                    logger.info(msg.format(node['addr']))
+                    logger.warning(msg.format(node['addr']))
         if all_alive:
             logger.info('All master is alive')
 
