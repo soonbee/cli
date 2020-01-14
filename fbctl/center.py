@@ -320,7 +320,7 @@ class Center(object):
         logger.info('OK, {}'.format(tag))
 
     def conf_restore(self, host, cluster_id, tag):
-        logger.debug('Restore conf to cluster {}...'.format(cluster_id))
+        logger.info('Restore conf to cluster {}...'.format(cluster_id))
         # prepare
         path_of_fb = config.get_path_of_fb(cluster_id)
         path_of_cli = config.get_path_of_cli(cluster_id)
@@ -437,32 +437,54 @@ class Center(object):
         net.ssh_execute(client, command, allow_status=[-1, 0, 1, 2, 123, 130])
         client.close()
 
-    def stop_redis(self, force=False):
+    def stop_redis(self, force=False, master=True, slave=True):
         """Stop redis
 
         :param force: If true, send SIGKILL. If not, send SIGINT
         """
         logger.debug('stop_redis')
-        logger.info('Stopping master cluster of redis...')
-        if self.slave_host_list:
+        success = False
+        if not self.slave_host_list:
+            slave = False
+        if slave:
             logger.info('Stopping slave cluster of redis...')
-        total_count = len(self.master_host_list) * len(self.master_port_list)
-        total_count += len(self.slave_host_list) * len(self.slave_port_list)
-        max_try_count = 10
-        while max_try_count > 0:
-            alive_count = self.get_alive_all_redis_count()
-            logger.info('cur: {} / total: {}'.format(alive_count, total_count))
-            if alive_count <= 0:
-                logger.info('Complete all redis process down')
-                return True
-            max_try_count -= 1
-            if max_try_count % 3 == 0:
-                for host in self.master_host_list:
-                    self.stop_redis_process(host, self.master_port_list, force)
-                for host in self.slave_host_list:
-                    self.stop_redis_process(host, self.slave_port_list, force)
-            time.sleep(1)
-        raise ClusterRedisError('Fail to stop redis: max try exceed')
+            s_ports = self.slave_port_list
+            s_count = len(self.slave_host_list) * len(s_ports)
+            max_try_count = 10
+            while max_try_count > 0:
+                alive_count = self.get_alive_slave_redis_count()
+                logger.info('cur: {} / total: {}'.format(alive_count, s_count))
+                if alive_count <= 0:
+                    logger.info('Complete all slave redis process down')
+                    success = True
+                    break
+                max_try_count -= 1
+                if max_try_count % 3 == 0:
+                    for host in self.slave_host_list:
+                        self.stop_redis_process(host, s_ports, force)
+                time.sleep(1)
+        if slave and not success:
+            raise ClusterRedisError('Fail to stop redis: max try exceed')
+        success = False
+        if master:
+            logger.info('Stopping master cluster of redis...')
+            m_ports = self.master_port_list
+            m_count = len(self.master_host_list) * len(m_ports)
+            max_try_count = 10
+            while max_try_count > 0:
+                alive_count = self.get_alive_master_redis_count()
+                logger.info('cur: {} / total: {}'.format(alive_count, m_count))
+                if alive_count <= 0:
+                    logger.info('Complete all master redis process down')
+                    success = True
+                    break
+                max_try_count -= 1
+                if max_try_count % 3 == 0:
+                    for host in self.master_host_list:
+                        self.stop_redis_process(host, m_ports, force)
+                time.sleep(1)
+        if master and not success:
+            raise ClusterRedisError('Fail to stop redis: max try exceed')
 
     def create_redis_data_directory(self, master=True, slave=True):
         """ create directory SR2_REDIS_DATA, SR2_FLASH_DB_PATH
@@ -521,16 +543,23 @@ class Center(object):
             net.ssh_execute(client, command)
             client.close()
 
-    def wait_until_all_redis_process_up(self):
+    def wait_until_all_redis_process_up(self, master=True, slave=True):
         """Wait until all redis process up
         """
         logger.debug('wait_until_all_redis_process_up')
         logger.info('Wait until all redis process up...')
-        total_count = len(self.master_host_list) * len(self.master_port_list)
-        total_count += len(self.slave_host_list) * len(self.slave_port_list)
+        total_count = 0
+        if master:
+            total_count += len(self.master_host_list) * len(self.master_port_list)
+        if slave:
+            total_count += len(self.slave_host_list) * len(self.slave_port_list)
         max_try_count = 10
         while max_try_count > 0:
-            alive_count = self.get_alive_all_redis_count()
+            alive_count = 0
+            if master:
+                alive_count += self.get_alive_master_redis_count()
+            if slave:
+                alive_count += self.get_alive_slave_redis_count()
             logger.info('cur: {} / total: {}'.format(alive_count, total_count))
             if alive_count >= total_count:
                 logger.info('Complete all redis process up')
@@ -1074,6 +1103,7 @@ class Center(object):
         return exit_code
 
     def run_failover(self, addr, take_over=False):
+        logger.debug('run failover {}'.format(addr))
         host, port = addr.split(':')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
@@ -1089,12 +1119,95 @@ class Center(object):
         sub_cmd = 'cluster failover'
         if take_over:
             sub_cmd += ' takeover'
-        command = '{} {} -h {} -p {} {} > /dev/null'.format(
+        command = '{} {} -h {} -p {} {}'.format(
             ' '.join(env_cmd),
             redis_cli_cmd,
             host,
             port,
             sub_cmd,
         )
-        exit_code = subprocess.call(command, shell=True)
-        return exit_code
+        stdout = subprocess.check_output(command, shell=True)
+        stdout = utils.to_str(stdout)
+        logger.debug('{} failover stdout: {}'.format(addr, stdout))
+        return stdout.strip()
+
+    def get_master_obj_list(self):
+        """get object list of master hosts
+        return [
+            {
+                node_id: string
+                addr: string(host:port)
+                status: string(connected / disconnected / paused
+                slaves: [
+                    {
+                        node_id: string
+                        addr: string(host:port)
+                        status: string(connected / disconnected / paused
+                    }
+                ]
+            }
+        ]
+        """
+        cluster_nodes = self.get_cluster_nodes()
+        logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
+        nodes_info = cluster_nodes.split('\n')
+        master_nodes_info = []
+        slave_nodes_info = []
+        for line in nodes_info:
+            if 'master' in line:
+                master_nodes_info.append(line)
+            if 'slave' in line:
+                slave_nodes_info.append(line)
+
+        if len(master_nodes_info) <= 1:
+            raise ClusterRedisError("Need to create cluster")
+
+        master_node_list = []
+        for line in master_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = self.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            master_node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+        master_node_list.sort(key=lambda node: node['addr'])
+
+        for line in slave_nodes_info:
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = self.ping(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            for master_node in master_node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+        master_node_list.sort(key=lambda node: node['addr'].split(':')[1])
+        for master in master_node_list:
+            master["slaves"].sort(key=lambda node: node['addr'].split(':')[1])
+        return master_node_list
+
+    def check_all_master_have_alive_slave(self):
+        master_obj_list = self.get_master_obj_list()
+        slaves_for_failover = []
+        for master in master_obj_list:
+            no_slave = True
+            for slave in master['slaves']:
+                if slave['status'] == 'connected':
+                    slaves_for_failover.append(slave['addr'])
+                    no_slave = False
+                    break
+            if no_slave:
+                msg = 'Not exist alive slave: {}'.format(master['addr'])
+                raise ClusterRedisError(msg)
+        return slaves_for_failover

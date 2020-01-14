@@ -13,8 +13,7 @@ from fbctl.exceptions import (
     ClusterIdError,
     ClusterNotExistError,
     FlashbaseError,
-    ClusterRedisError,
-    PropsKeyError,
+    ClusterRedisError
 )
 
 
@@ -37,57 +36,73 @@ class Cluster(object):
     def __init__(self, print_mode='screen'):
         self._print_mode = print_mode
 
-    def stop(self, force=False):
+    def stop(self, force=False, master=True, slave=True):
         """Stop cluster
         """
         if not isinstance(force, bool):
             logger.error("option '--force' can use only 'True' or 'False'")
+            return
+        if not isinstance(master, bool):
+            logger.error("option '--master' can use only 'True' or 'False'")
+            return
+        if not isinstance(slave, bool):
+            logger.error("option '--slave' can use only 'True' or 'False'")
+            return
         center = Center()
         center.update_ip_port()
         success = center.check_hosts_connection()
         if not success:
             return
-        center.stop_redis(force)
+        center.stop_redis(force, master=master, slave=slave)
 
-    def start(self, profile=False):
+    def start(self, profile=False, master=True, slave=True):
         """Start cluster
         """
         logger.debug("command 'cluster start'")
         if not isinstance(profile, bool):
             logger.error("option '--profile' can use only 'True' or 'False'")
+            return
+        if not isinstance(master, bool):
+            logger.error("option '--master' can use only 'True' or 'False'")
+            return
+        if not isinstance(slave, bool):
+            logger.error("option '--slave' can use only 'True' or 'False'")
+            return
         center = Center()
         center.update_ip_port()
         success = center.check_hosts_connection()
         if not success:
             return
         center.ensure_cluster_exist()
-        master_alive_count = center.get_alive_master_redis_count()
-        if master_alive_count > 0:
-            msg = [
-                'Fail to start master nodes... ',
-                'Must be checked running master processes!\n',
-                'We estimate that ',
-                "redis 'MASTER' processes is {}".format(master_alive_count)
-            ]
-            raise FlashbaseError(11, ''.join(msg))
+        if master:
+            master_alive_count = center.get_alive_master_redis_count()
+            if master_alive_count > 0:
+                msg = [
+                    'Fail to start master nodes... ',
+                    'Must be checked running master processes!\n',
+                    'We estimate that ',
+                    "redis 'MASTER' processes is {}".format(master_alive_count)
+                ]
+                raise FlashbaseError(11, ''.join(msg))
         slave_alive_count = center.get_alive_slave_redis_count()
-        if slave_alive_count > 0:
-            msg = [
-                'Fail to start slave nodes... ',
-                'Must be checked running slave processes!\n',
-                'We estimate that ',
-                "redis 'SLAVE' processes is {}".format(slave_alive_count)
-            ]
-            raise FlashbaseError(12, ''.join(msg))
-        center.backup_server_logs()
+        if slave:
+            if slave_alive_count > 0:
+                msg = [
+                    'Fail to start slave nodes... ',
+                    'Must be checked running slave processes!\n',
+                    'We estimate that ',
+                    "redis 'SLAVE' processes is {}".format(slave_alive_count)
+                ]
+                raise FlashbaseError(12, ''.join(msg))
+        center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()
 
         # equal to cluster.configure()
         center.configure_redis()
         center.sync_conf(show_result=True)
 
-        center.start_redis_process(profile)
-        center.wait_until_all_redis_process_up()
+        center.start_redis_process(profile, master=master, slave=slave)
+        center.wait_until_all_redis_process_up(master=master, slave=slave)
 
     def create(self, yes=False):
         """Create cluster
@@ -334,7 +349,7 @@ class Cluster(object):
         """
         center = Center()
         center.update_ip_port()
-        master_obj_list = self._get_master_obj_list()
+        master_obj_list = center.get_master_obj_list()
         msg = color.yellow('{} has no alive slave to proceed failover')
         all_alive = True
         for node in master_obj_list:
@@ -347,11 +362,11 @@ class Cluster(object):
                             slave['addr'],
                             node['addr']
                         ))
-                        exit_code = center.run_failover(
+                        stdout = center.run_failover(
                             slave['addr'],
                             take_over=True
                         )
-                        if exit_code is not 0:
+                        if stdout != 'OK':
                             continue
                         logger.info('OK')
                         success = True
@@ -364,7 +379,7 @@ class Cluster(object):
     def failback(self):
         center = Center()
         center.update_ip_port()
-        master_obj_list = self._get_master_obj_list()
+        master_obj_list = center.get_master_obj_list()
         disconnected_list = []
         paused_list = []
         for master in master_obj_list:
@@ -403,7 +418,9 @@ class Cluster(object):
     def tree(self):
         """The results of 'cli cluster nodes' are displayed in tree format.
         """
-        master_node_list = self._get_master_obj_list()
+        center = Center()
+        center.update_ip_port()
+        master_node_list = center.get_master_obj_list()
         output_msg = []
         for master_node in master_node_list:
             addr = master_node['addr']
@@ -425,68 +442,6 @@ class Cluster(object):
                 output_msg.append('|__ ' + msg)
             output_msg.append('')
         logger.info(color.ENDC + '\n'.join(output_msg))
-
-    def _get_master_obj_list(self):
-        """get object list of master hosts
-        return [
-            {
-                node_id: string
-                addr: string(host:port)
-                status: string(connected / disconnected / paused
-                slaves: [
-                    {
-                        node_id: string
-                        addr: string(host:port)
-                        status: string(connected / disconnected / paused
-                    }
-                ]
-            }
-        ]
-        """
-        center = Center()
-        center.update_ip_port()
-        cluster_nodes = center.get_cluster_nodes()
-        logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
-        nodes_info = cluster_nodes.split('\n')
-        master_nodes_info = []
-        slave_nodes_info = []
-        for line in nodes_info:
-            if 'master' in line:
-                master_nodes_info.append(line)
-            if 'slave' in line:
-                slave_nodes_info.append(line)
-
-        master_node_list = []
-        for line in master_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = center.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            master_node_list.append({
-                "node_id": splited[0],
-                "addr": splited[1],
-                "status": status,
-                "slaves": []
-            })
-        master_node_list.sort(key=lambda node: node['addr'])
-
-        for line in slave_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = center.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            for master_node in master_node_list:
-                if master_node["node_id"] in line:
-                    master_node["slaves"].append({
-                        "node_id": splited[0],
-                        "addr": splited[1],
-                        "status": status
-                    })
-        return master_node_list
 
     def _print(self, text):
         if self._print_mode == 'screen':
