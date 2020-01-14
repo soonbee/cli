@@ -134,7 +134,6 @@ class RedisCliConfig(object):
         if (not host or not port) and not all:
             logger.error("Enter host and port or use '--all' option.")
             return
-        tr = TableReport(['step', 'result'])
         sub_cmd = 'config set {key} {value} 2>&1'.format(key=key, value=value)
         if all:
             meta = []
@@ -149,7 +148,6 @@ class RedisCliConfig(object):
             if meta:
                 utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
             logger.info('success {}/{}'.format(ok_cnt, len(ret)))
-            return
         else:
             RedisCliUtil.command(
                 sub_cmd=sub_cmd,

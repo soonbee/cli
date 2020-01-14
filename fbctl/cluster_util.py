@@ -31,6 +31,8 @@ def get_cluster_list():
 
 def convert_list_2_seq(ports):
     logger.debug('ports: {}'.format(ports))
+    ports.sort()
+    logger.debug('sorted ports: {}'.format(ports))
     ret = []
     s = ports[0]
     pre = ports[0] - 1
