@@ -170,6 +170,7 @@ class RedisCliUtil(object):
         def _async_target_func(m_s, pre_cmd, host, port, sub_cmd, ret):
             try:
                 command = '{} -h {} -p {} {}'.format(pre_cmd, host, port, sub_cmd)
+                logger.debug(command)
                 stdout = subprocess.check_output(command, shell=True)
                 stdout = stdout.decode('utf-8').strip()
                 ret.append((m_s, host, port, 'OK', stdout))
@@ -185,9 +186,19 @@ class RedisCliUtil(object):
         path_of_fb = config.get_path_of_fb(cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
 
+        logger.debug('command_all_async')
+        cluster_id = config.get_cur_cluster_id()
+        lib_path = config.get_ld_library_path(cluster_id)
+        env_cmd = [
+            'export LD_LIBRARY_PATH={};'.format(lib_path['ld_library_path']),
+            'export DYLD_LIBRARY_PATH={};'.format(
+                lib_path['dyld_library_path']
+            ),
+        ]
+        env = ' '.join(env_cmd)
         threads = []
         ret = []  # (m/s, host, port, result, message)
-        pre_cmd = '{}/redis-cli -c'.format(sr2_redis_bin)
+        pre_cmd = '{} {}/redis-cli -c'.format(env, sr2_redis_bin)
         for host in master_host_list:
             for port in master_port_list:
                 t = Thread(
