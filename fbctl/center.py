@@ -1023,6 +1023,7 @@ class Center(object):
     def get_cluster_nodes(self):
         def _async_check_output(command, output):
             try:
+                logger.debug("subprocess check output '{}'".format(command))
                 ret = subprocess.check_output(command, shell=True)
                 output.append(utils.to_str(ret))
             except Exception as ex:
@@ -1158,6 +1159,7 @@ class Center(object):
                 exit_code = func(splited[1])
                 if exit_code == 124:
                     status = 'paused'
+            logger.debug("master {} {}".format(splited[1], status))
             node_list.append({
                 "node_id": splited[0],
                 "addr": splited[1],
@@ -1172,6 +1174,7 @@ class Center(object):
                 exit_code = func(splited[1])
                 if exit_code == 124:
                     status = 'paused'
+            logger.debug("slave {} {}".format(splited[1], status))
             for master_node in node_list:
                 if master_node["node_id"] in line:
                     master_node["slaves"].append({
@@ -1192,6 +1195,7 @@ class Center(object):
             if 'slave' in line:
                 slave_nodes_info.append(line)
 
+        logger.debug('master nodes info: {}'.format(master_nodes_info))
         if len(master_nodes_info) <= 1:
             raise ClusterRedisError("Need to create cluster")
 
