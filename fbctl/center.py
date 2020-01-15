@@ -1021,6 +1021,13 @@ class Center(object):
         return success
 
     def get_cluster_nodes(self):
+        def _async_check_output(command, output):
+            try:
+                ret = subprocess.check_output(command, shell=True)
+                output.append(utils.to_str(ret))
+            except Exception as ex:
+                logger.debug(ex)
+
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
@@ -1034,38 +1041,34 @@ class Center(object):
         redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
         sub_cmd = 'cluster nodes 2>&1'
         t = 2
+        host_port_list = []
         for host in self.master_host_list:
             for port in self.master_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
+                host_port_list.append((host, port))
         for host in self.slave_host_list:
             for port in self.slave_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
-        msg = 'All redis is disconnected or paused.'
-        raise ClusterRedisError(msg)
+                host_port_list.append((host, port))
+        output = []
+        threads = []
+        for host, port in host_port_list:
+            command = '{} timeout {} {} -h {} -p {} {}'.format(
+                ' '.join(env_cmd),
+                t,
+                redis_cli_cmd,
+                host,
+                port,
+                sub_cmd,
+            )
+            thread = Thread(target=_async_check_output, args=(command, output))
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if not output:
+            msg = 'All redis is disconnected or paused.'
+            raise ClusterRedisError(msg)
+        return output[0]
 
     def ping(self, addr, t=0.5, c=3):
         """ping to redis
