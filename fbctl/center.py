@@ -1137,17 +1137,47 @@ class Center(object):
             {
                 node_id: string
                 addr: string(host:port)
-                status: string(connected / disconnected / paused
+                status: string(connected / disconnected / paused)
                 slaves: [
                     {
                         node_id: string
                         addr: string(host:port)
-                        status: string(connected / disconnected / paused
+                        status: string(connected / disconnected / paused)
                     }
                 ]
             }
         ]
         """
+        def _check_master_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+
+        def _check_slave_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            for master_node in node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+                    break
+
         cluster_nodes = self.get_cluster_nodes()
         logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
         nodes_info = cluster_nodes.split('\n')
@@ -1163,35 +1193,31 @@ class Center(object):
             raise ClusterRedisError("Need to create cluster")
 
         master_node_list = []
+        threads = []
         for line in master_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            master_node_list.append({
-                "node_id": splited[0],
-                "addr": splited[1],
-                "status": status,
-                "slaves": []
-            })
+            thread = Thread(
+                target=_check_master_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
         master_node_list.sort(key=lambda node: node['addr'])
 
+        threads = []
         for line in slave_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            for master_node in master_node_list:
-                if master_node["node_id"] in line:
-                    master_node["slaves"].append({
-                        "node_id": splited[0],
-                        "addr": splited[1],
-                        "status": status
-                    })
+            thread = Thread(
+                target=_check_slave_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
         master_node_list.sort(key=lambda node: node['addr'].split(':')[1])
         for master in master_node_list:
             master["slaves"].sort(key=lambda node: node['addr'].split(':')[1])
