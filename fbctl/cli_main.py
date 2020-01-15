@@ -313,7 +313,11 @@ def _deploy(cluster_id, history_save, clean):
                 if not yes:
                     shutil.rmtree(tmp_backup_path)
             if not os.path.exists(tmp_backup_path):
-                shutil.copytree(conf_path, tmp_backup_path)
+                os.mkdir(tmp_backup_path)
+                shutil.copy(
+                    os.path.join(conf_path, 'redis.properties'),
+                    os.path.join(tmp_backup_path, 'redis.properties')
+                )
             tmp_props_path = os.path.join(tmp_backup_path, 'redis.properties')
             editor.edit(tmp_props_path, syntax='sh')
             meta += DeployUtil().get_meta_from_props(tmp_props_path)
