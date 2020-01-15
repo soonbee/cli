@@ -1070,7 +1070,7 @@ class Center(object):
             raise ClusterRedisError(msg)
         return output[0]
 
-    def ping(self, addr, t=0.5, c=3):
+    def ping(self, addr, t=3, c=3):
         """ping to redis
         return exit status
         0: PONG
