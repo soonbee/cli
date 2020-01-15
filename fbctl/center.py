@@ -1021,6 +1021,14 @@ class Center(object):
         return success
 
     def get_cluster_nodes(self):
+        def _async_check_output(command, output):
+            try:
+                logger.debug("subprocess check output '{}'".format(command))
+                ret = subprocess.check_output(command, shell=True)
+                output.append(utils.to_str(ret))
+            except Exception as ex:
+                logger.debug(ex)
+
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
@@ -1034,40 +1042,36 @@ class Center(object):
         redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
         sub_cmd = 'cluster nodes 2>&1'
         t = 2
+        host_port_list = []
         for host in self.master_host_list:
             for port in self.master_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
+                host_port_list.append((host, port))
         for host in self.slave_host_list:
             for port in self.slave_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
-        msg = 'All redis is disconnected or paused.'
-        raise ClusterRedisError(msg)
+                host_port_list.append((host, port))
+        output = []
+        threads = []
+        for host, port in host_port_list:
+            command = '{} timeout {} {} -h {} -p {} {}'.format(
+                ' '.join(env_cmd),
+                t,
+                redis_cli_cmd,
+                host,
+                port,
+                sub_cmd,
+            )
+            thread = Thread(target=_async_check_output, args=(command, output))
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if not output:
+            msg = 'All redis is disconnected or paused.'
+            raise ClusterRedisError(msg)
+        return output[0]
 
-    def ping(self, addr, t=0.5, c=3):
+    def ping(self, addr, t=3, c=3):
         """ping to redis
         return exit status
         0: PONG
@@ -1137,17 +1141,49 @@ class Center(object):
             {
                 node_id: string
                 addr: string(host:port)
-                status: string(connected / disconnected / paused
+                status: string(connected / disconnected / paused)
                 slaves: [
                     {
                         node_id: string
                         addr: string(host:port)
-                        status: string(connected / disconnected / paused
+                        status: string(connected / disconnected / paused)
                     }
                 ]
             }
         ]
         """
+        def _check_master_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            logger.debug("master {} {}".format(splited[1], status))
+            node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+
+        def _check_slave_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            logger.debug("slave {} {}".format(splited[1], status))
+            for master_node in node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+                    break
+
         cluster_nodes = self.get_cluster_nodes()
         logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
         nodes_info = cluster_nodes.split('\n')
@@ -1159,39 +1195,36 @@ class Center(object):
             if 'slave' in line:
                 slave_nodes_info.append(line)
 
+        logger.debug('master nodes info: {}'.format(master_nodes_info))
         if len(master_nodes_info) <= 1:
             raise ClusterRedisError("Need to create cluster")
 
         master_node_list = []
+        threads = []
         for line in master_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            master_node_list.append({
-                "node_id": splited[0],
-                "addr": splited[1],
-                "status": status,
-                "slaves": []
-            })
+            thread = Thread(
+                target=_check_master_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
         master_node_list.sort(key=lambda node: node['addr'])
 
+        threads = []
         for line in slave_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            for master_node in master_node_list:
-                if master_node["node_id"] in line:
-                    master_node["slaves"].append({
-                        "node_id": splited[0],
-                        "addr": splited[1],
-                        "status": status
-                    })
+            thread = Thread(
+                target=_check_slave_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
         master_node_list.sort(key=lambda node: node['addr'].split(':')[1])
         for master in master_node_list:
             master["slaves"].sort(key=lambda node: node['addr'].split(':')[1])
