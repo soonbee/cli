@@ -298,14 +298,45 @@ def int_2_time(v):
     return ' '.join(ret)
 
 
+def int_2_bytes(v):
+    v = int(v)
+    if v == 0:
+        return '0b'
+    KB = 1024
+    MB = KB * 1024
+    GB = MB * 1024
+    ret = []
+    if v >= GB:
+        gb = v // GB
+        v -= gb * GB
+        ret.append('{}gb'.format(gb))
+    if v >= MB:
+        mb = v // MB
+        v -= mb * MB
+        ret.append('{}mb'.format(mb))
+    if v >= KB:
+        kb = v // KB
+        v -= kb * KB
+        ret.append('{}kb'.format(kb))
+    if v > 0:
+        ret.append('{}b'.format(v))
+    return ' '.join(ret)
+
+
 def convert_2_human_readable(key, value):
     enable_human_readable = {
-        'flash-db-ttl': 'date'
+        'flash-db-ttl': 'date',
+        'flash-db-size-limit': 'byte',
+        'force_flush_slaves_outputbuffer_size': 'byte'
     }
     if key not in enable_human_readable:
         logger.debug('{} is not support human readable')
         return value
     if enable_human_readable[key] == 'date':
         converted = int_2_time(value)
+        logger.debug('{} convert: {}'.format(value, converted))
+        return converted
+    if enable_human_readable[key] == 'byte':
+        converted = int_2_bytes(value)
         logger.debug('{} convert: {}'.format(value, converted))
         return converted
