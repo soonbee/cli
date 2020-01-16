@@ -100,6 +100,7 @@ class RedisCliConfig(object):
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
                     _, value = message.split('\n')
+                    value = utils.convert_2_human_readable(key, value)
                     meta.append([m_s, addr, value])
                 else:
                     meta.append([m_s, addr, color.red(result)])

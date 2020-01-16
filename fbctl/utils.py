@@ -271,3 +271,41 @@ def to_str(target):
     if isinstance(target, bytes):
         target = target.decode('utf-8')
     return str(target)
+
+
+def int_2_time(v):
+    v = int(v)
+    if v == 0:
+        return '0secs'
+    ONE_MIN = 60
+    ONE_HOUR = ONE_MIN * 60
+    ONE_DAY = ONE_HOUR * 24
+    ret = []
+    if v >= ONE_DAY:
+        days = v // ONE_DAY
+        v -= days * ONE_DAY
+        ret.append('{}days'.format(days))
+    if v >= ONE_HOUR:
+        hours = v // ONE_HOUR
+        v -= hours * ONE_HOUR
+        ret.append('{}hours'.format(hours))
+    if v >= ONE_MIN:
+        mins = v // ONE_MIN
+        v -= mins * ONE_MIN
+        ret.append('{}mins'.format(mins))
+    if v > 0:
+        ret.append('{}secs'.format(v))
+    return ' '.join(ret)
+
+
+def convert_2_human_readable(key, value):
+    enable_human_readable = {
+        'flash-db-ttl': 'date'
+    }
+    if key not in enable_human_readable:
+        logger.debug('{} is not support human readable')
+        return value
+    if enable_human_readable[key] == 'date':
+        converted = int_2_time(value)
+        logger.debug('{} convert: {}'.format(value, converted))
+        return converted
