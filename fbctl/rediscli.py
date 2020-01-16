@@ -99,17 +99,15 @@ class RedisCliConfig(object):
             for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    _, value = message.split('\n')
-                    value = utils.convert_2_human_readable(key, value)
-                    meta.append([m_s, addr, value])
+                    if message:
+                        _, value = message.split('\n')
+                        value = utils.convert_2_human_readable(key, value)
+                        meta.append([m_s, addr, value])
+                    else:
+                        meta.append([m_s, addr, color.red('KEY ERROR')])
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-            return
-        if all:
-            RedisCliUtil.command_all(
-                sub_cmd=sub_cmd,
-                formatter=utils.print_table)
         else:
             RedisCliUtil.command(
                 sub_cmd=sub_cmd,
@@ -140,10 +138,13 @@ class RedisCliConfig(object):
             meta = []
             ret = RedisCliUtil.command_all_async(sub_cmd)
             ok_cnt = 0
-            for m_s, host, port, result, _ in ret:
+            for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    ok_cnt += 1
+                    if utils.to_str(message) == 'OK':
+                        ok_cnt += 1
+                    else:
+                        meta.append([m_s, addr, color.red(message)])
                 else:
                     meta.append([m_s, addr, color.red('FAIL')])
             if meta:

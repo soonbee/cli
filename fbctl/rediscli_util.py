@@ -218,6 +218,7 @@ class RedisCliUtil(object):
             time.sleep(0.02)
         for th in threads:
             th.join()
+        logger.debug(ret)
         return ret
 
     @staticmethod
