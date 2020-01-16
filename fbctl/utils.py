@@ -327,7 +327,8 @@ def convert_2_human_readable(key, value):
     enable_human_readable = {
         'flash-db-ttl': 'date',
         'flash-db-size-limit': 'byte',
-        'force_flush_slaves_outputbuffer_size': 'byte'
+        'force_flush_slaves_outputbuffer_size': 'byte',
+        'maxmemory': 'byte'
     }
     if key not in enable_human_readable:
         logger.debug('{} is not support human readable')

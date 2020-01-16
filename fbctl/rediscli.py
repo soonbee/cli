@@ -78,6 +78,18 @@ class RedisCliConfig(object):
     def __init__(self):
         pass
 
+    def _is_cluster_unit(self, key):
+        return key in ['flash-db-size-limit']
+
+    def _convert_2_cluster_limit(self, ret):
+        combined = 0
+        for m_s, _, _, _, message in ret:
+            if message and m_s == 'Master':
+                _, value = message.split('\n')
+                if utils.is_number(value):
+                    combined += int(value)
+        return combined
+
     def get(self, key, all=False, host=None, port=None):
         """Command: cli config get [key]
 
@@ -108,6 +120,10 @@ class RedisCliConfig(object):
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
+            if self._is_cluster_unit(key):
+                value = self._convert_2_cluster_limit(ret)
+                value = utils.convert_2_human_readable(key, value)
+                logger.info('cluster unit: {}'.format(value))
         else:
             RedisCliUtil.command(
                 sub_cmd=sub_cmd,
