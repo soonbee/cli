@@ -78,6 +78,9 @@ class RedisCliConfig(object):
     def __init__(self):
         pass
 
+    def no_print(self, output):
+        pass
+
     def _is_cluster_unit(self, key):
         return key in ['flash-db-size-limit']
 
@@ -116,7 +119,7 @@ class RedisCliConfig(object):
                         value = utils.convert_2_human_readable(key, value)
                         meta.append([m_s, addr, value])
                     else:
-                        meta.append([m_s, addr, color.red('KEY ERROR')])
+                        meta.append([m_s, addr, color.red('Invalid Key')])
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
@@ -125,10 +128,17 @@ class RedisCliConfig(object):
                 value = utils.convert_2_human_readable(key, value)
                 logger.info('cluster unit: {}'.format(value))
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output:
+                key, value = output.split('\n')
+                logger.info(utils.convert_2_human_readable(key, value))
+            else:
+                logger.error("Invalid Key: {}".format(key))
 
     def set(self, key, value, all=False, save=False, host=None, port=None):
         """Command: cli config set [key] [value]
@@ -167,10 +177,16 @@ class RedisCliConfig(object):
                 utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
             logger.info('success {}/{}'.format(ok_cnt, len(ret)))
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output == "OK":
+                logger.info(output)
+            else:
+                logger.error(output)
         if save:
             RedisCliUtil.save_redis_template_config(key, value)
             center = Center()
