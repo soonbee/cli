@@ -64,6 +64,9 @@ def run_monitor(n=10):
 
     Monitor remote logs
     """
+    if not isinstance(n, int):
+        logger.error("option '--n' can use only number")
+        return
     host_list = config.get_master_host_list()
     cluster_id = config.get_cur_cluster_id()
     target_host = ask_util.host_for_monitor(host_list)
@@ -127,6 +130,7 @@ def _deploy_zero_downtime(cluster_id):
     s_hosts = center.slave_host_list
     s_ports = center.slave_port_list
     path_of_fb = config.get_path_of_fb(cluster_id)
+    cluster_path = path_of_fb['cluster_path']
 
     # check master alive
     m_count = len(m_hosts) * len(m_ports)
@@ -154,7 +158,6 @@ def _deploy_zero_downtime(cluster_id):
 
     # backup cluster
     for host in s_hosts:
-        cluster_path = path_of_fb['cluster_path']
         client = net.get_ssh(host)
         center.cluster_backup(host, cluster_id, cluster_backup_dir)
         client.close()
@@ -307,6 +310,8 @@ def _deploy(cluster_id, history_save, clean):
             meta += DeployUtil().get_meta_from_props(props_path)
             hosts = config.get_props(props_path, 'sr2_redis_master_hosts')
         else:
+            if not os.path.isdir(conf_backup_path):
+                os.mkdir(conf_backup_path)
             if os.path.exists(tmp_backup_path):
                 q = 'There is a history of modification. Do you want to load?'
                 yes = ask_util.askBool(q)

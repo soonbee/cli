@@ -218,6 +218,7 @@ class RedisCliUtil(object):
             time.sleep(0.02)
         for th in threads:
             th.join()
+        logger.debug(ret)
         return ret
 
     @staticmethod
@@ -239,7 +240,8 @@ class RedisCliUtil(object):
     def _save_config(f, key, value):
         inplace_count = 0
         for line in fileinput.input(f, inplace=True):
-            if line.startswith(key):
+            words = line.split()
+            if words and words[0] == key:
                 msg = '{key} {value}'.format(key=key, value=value)
                 inplace_count += 1
                 print(msg)

@@ -78,6 +78,21 @@ class RedisCliConfig(object):
     def __init__(self):
         pass
 
+    def no_print(self, output):
+        pass
+
+    def _is_cluster_unit(self, key):
+        return key in ['flash-db-size-limit']
+
+    def _convert_2_cluster_limit(self, ret):
+        combined = 0
+        for m_s, _, _, _, message in ret:
+            if message and m_s == 'Master':
+                _, value = message.split('\n')
+                if utils.is_number(value):
+                    combined += int(value)
+        return combined
+
     def get(self, key, all=False, host=None, port=None):
         """Command: cli config get [key]
 
@@ -99,21 +114,31 @@ class RedisCliConfig(object):
             for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    _, value = message.split('\n')
-                    meta.append([m_s, addr, value])
+                    if message:
+                        _, value = message.split('\n')
+                        value = utils.convert_2_human_readable(key, value)
+                        meta.append([m_s, addr, value])
+                    else:
+                        meta.append([m_s, addr, color.red('Invalid Key')])
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-            return
-        if all:
-            RedisCliUtil.command_all(
-                sub_cmd=sub_cmd,
-                formatter=utils.print_table)
+            if self._is_cluster_unit(key):
+                value = self._convert_2_cluster_limit(ret)
+                value = utils.convert_2_human_readable(key, value)
+                logger.info('cluster unit: {}'.format(value))
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output:
+                key, value = output.split('\n')
+                logger.info(utils.convert_2_human_readable(key, value))
+            else:
+                logger.error("Invalid Key: {}".format(key))
 
     def set(self, key, value, all=False, save=False, host=None, port=None):
         """Command: cli config set [key] [value]
@@ -139,20 +164,29 @@ class RedisCliConfig(object):
             meta = []
             ret = RedisCliUtil.command_all_async(sub_cmd)
             ok_cnt = 0
-            for m_s, host, port, result, _ in ret:
+            for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    ok_cnt += 1
+                    if utils.to_str(message) == 'OK':
+                        ok_cnt += 1
+                    else:
+                        meta.append([m_s, addr, color.red(message)])
                 else:
                     meta.append([m_s, addr, color.red('FAIL')])
             if meta:
                 utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
             logger.info('success {}/{}'.format(ok_cnt, len(ret)))
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output == "OK":
+                logger.info(output)
+            else:
+                logger.error(output)
         if save:
             RedisCliUtil.save_redis_template_config(key, value)
             center = Center()
