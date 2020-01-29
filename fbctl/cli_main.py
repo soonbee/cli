@@ -18,15 +18,17 @@ from pygments.lexers.sql import SqlLexer
 import paramiko
 import yaml
 
-from fbctl import log
-from fbctl import net
-from fbctl import config
-from fbctl import utils
-from fbctl import prompt
-from fbctl import color
-from fbctl import ask_util
-from fbctl import cluster_util
-from fbctl import editor
+from fbctl import (
+    log,
+    net,
+    config,
+    utils,
+    prompt,
+    color,
+    ask_util,
+    cluster_util,
+    editor
+)
 from fbctl.log import logger
 from fbctl.cli import Cli
 from fbctl.cluster import Cluster
@@ -157,7 +159,7 @@ def _deploy_zero_downtime(cluster_id):
     center.conf_backup(local_ip, cluster_id, conf_backup_dir)
 
     # backup cluster
-    for host in s_hosts:
+    for host in s_hostsuster
         client = net.get_ssh(host)
         center.cluster_backup(host, cluster_id, cluster_backup_dir)
         client.close()

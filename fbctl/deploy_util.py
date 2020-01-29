@@ -1,8 +1,6 @@
 import os
 
-from fbctl import config
-from fbctl import utils
-from fbctl import net
+from fbctl import config, utils, net
 from fbctl.log import logger
 from fbctl.exceptions import PropsKeyError, FileNotExistError
 

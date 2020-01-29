@@ -2,9 +2,7 @@ import os
 from functools import reduce
 import time
 
-from fbctl import color
-from fbctl import config
-from fbctl import cluster_util
+from fbctl import color, config, cluster_util
 from fbctl.center import Center
 from fbctl.log import logger
 from fbctl.rediscli_util import RedisCliUtil

@@ -6,9 +6,7 @@ import re
 from ask import ask, askInt, askBool
 
 from fbctl.log import logger
-from fbctl import config
-from fbctl import net
-from fbctl import utils
+from fbctl import config, net, utils
 
 
 START_PORT = 18000

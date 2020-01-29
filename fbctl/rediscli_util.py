@@ -7,8 +7,7 @@ import subprocess
 from threading import Thread
 import time
 
-from fbctl import config
-from fbctl import utils
+from fbctl import config, utils
 from fbctl.log import logger
 
 

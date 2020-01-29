@@ -4,8 +4,7 @@ import sys
 from prompt_toolkit.styles import Style
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl import editor
+from fbctl import config, editor
 from fbctl.log import logger
 from fbctl.exceptions import ConvertError
 

@@ -2,11 +2,9 @@ import os
 import shutil
 
 
-from fbctl import config
+from fbctl import config, editor, ask_util
 from fbctl.log import logger
-from fbctl import editor
 from fbctl.center import Center
-from fbctl import ask_util
 
 
 class Conf(object):
