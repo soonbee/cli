@@ -165,7 +165,7 @@ class RedisCliUtil(object):
         return outs, meta
 
     @staticmethod
-    def command_all_async(sub_cmd):
+    def command_all_async(sub_cmd, slave=True):
         def _async_target_func(m_s, pre_cmd, host, port, sub_cmd, ret):
             try:
                 command = '{} -h {} -p {} {}'.format(pre_cmd, host, port, sub_cmd)
@@ -180,8 +180,9 @@ class RedisCliUtil(object):
         cluster_id = config.get_cur_cluster_id()
         master_host_list = config.get_master_host_list(cluster_id)
         master_port_list = config.get_master_port_list(cluster_id)
-        slave_host_list = config.get_slave_host_list(cluster_id)
-        slave_port_list = config.get_slave_port_list(cluster_id)
+        if slave:
+            slave_host_list = config.get_slave_host_list(cluster_id)
+            slave_port_list = config.get_slave_port_list(cluster_id)
         path_of_fb = config.get_path_of_fb(cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
 
@@ -205,13 +206,14 @@ class RedisCliUtil(object):
                     args=('Master', pre_cmd, host, port, sub_cmd, ret),
                 )
                 threads.append(t)
-        for host in slave_host_list:
-            for port in slave_port_list:
-                t = Thread(
-                    target=_async_target_func,
-                    args=('Slave', pre_cmd, host, port, sub_cmd, ret),
-                )
-                threads.append(t)
+        if slave:
+            for host in slave_host_list:
+                for port in slave_port_list:
+                    t = Thread(
+                        target=_async_target_func,
+                        args=('Slave', pre_cmd, host, port, sub_cmd, ret),
+                    )
+                    threads.append(t)
         for th in threads:
             th.start()
             time.sleep(0.02)

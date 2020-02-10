@@ -255,10 +255,13 @@ class Cluster(object):
         logger.debug('rowcount')
         # open-redis-cli-all info Tablespace | grep totalRows | awk -F ',
         # ' '{print $4}' | awk -F '=' '{sum += $2} END {print sum}'
-        host_list = config.get_master_host_list()
-        port_list = config.get_master_port_list()
-        outs, _ = RedisCliUtil.command_raw_all(
-            'info Tablespace', host_list, port_list)
+        ret = RedisCliUtil.command_all_async('info Tablespace', slave=False)
+        outs = ''
+        for _, host, port, res, stdout in ret:
+            if res == 'OK':
+                outs = '\n'.join([outs, stdout])
+            else:
+                logger.warning("FAIL {}:{} {}".format(host, port, stdout))
         lines = outs.splitlines()
         key = 'totalRows'
         filtered_lines = (filter(lambda x: key in x, lines))

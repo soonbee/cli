@@ -159,7 +159,7 @@ def _deploy_zero_downtime(cluster_id):
     center.conf_backup(local_ip, cluster_id, conf_backup_dir)
 
     # backup cluster
-    for host in s_hostsuster
+    for host in s_hosts:
         client = net.get_ssh(host)
         center.cluster_backup(host, cluster_id, cluster_backup_dir)
         client.close()
