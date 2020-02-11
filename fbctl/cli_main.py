@@ -356,6 +356,63 @@ def _deploy(cluster_id, history_save, clean):
         logger.error('Must include localhost.')
         return
 
+    # get port info
+    if deploy_state == DEPLOYED:
+        if restore_yes:
+            key = 'sr2_redis_master_ports'
+            m_ports = config.get_props(props_path, key, [])
+            key = 'sr2_redis_slave_ports'
+            s_ports = config.get_props(props_path, key, [])
+            replicas = len(s_ports) // len(m_ports)
+        else:
+            key = 'sr2_redis_master_ports'
+            m_ports = config.get_props(tmp_props_path, key, [])
+            key = 'sr2_redis_slave_ports'
+            s_ports = config.get_props(tmp_props_path, key, [])
+            replicas = len(s_ports) // len(m_ports)
+    else:
+        m_ports = props_dict['master_ports']
+        s_ports = props_dict['slave_ports']
+        replicas = props_dict['replicas']
+
+    while True:
+        logger.info("Check port...")
+        host_ports_list = []
+        for host in hosts:
+            host_ports_list.append((host, m_ports + s_ports))
+        conflict = Center().check_port_is_enable(host_ports_list)
+        if not conflict:
+            logger.info("OK")
+            break
+        utils.print_table([["HOST", "PORT"]] + conflict)
+        logger.warning('(Watch out) The above ports are already in use.')
+        yes = ask_util.askBool(color.yellow('Do you want to proceed?'))
+        if yes:
+            logger.info("OK")
+            break
+        m_ports = ask_util.master_ports(False, cluster_id)
+        replicas = ask_util.replicas(False)
+        s_ports = ask_util.slave_ports(cluster_id, len(m_ports), replicas)
+        if deploy_state == DEPLOYED:
+            if restore_yes:
+                key = 'sr2_redis_master_ports'
+                value = cluster_util.convert_list_2_seq(m_ports)
+                config.set_props(props_path, key, value)
+                key = 'sr2_redis_slave_ports'
+                value = cluster_util.convert_list_2_seq(s_ports)
+                config.set_props(props_path, key, value)
+            else:
+                key = 'sr2_redis_master_ports'
+                value = cluster_util.convert_list_2_seq(m_ports)
+                config.set_props(tmp_props_path, key, value)
+                key = 'sr2_redis_slave_ports'
+                value = cluster_util.convert_list_2_seq(s_ports)
+                config.set_props(tmp_props_path, key, value)
+        else:
+            props_dict['master_ports'] = m_ports
+            props_dict['slave_ports'] = s_ports
+            props_dict['replicas'] = replicas
+
     # if pending, delete legacy on each hosts
     for host in hosts:
         if DeployUtil().get_state(cluster_id, host) == PENDING:
@@ -390,15 +447,14 @@ def _deploy(cluster_id, history_save, clean):
     logger.info('OK')
 
     # cluster stop and clean
-    if deploy_state == DEPLOYED:
+    if deploy_state == DEPLOYED and clean:
         center = Center()
         cur_cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
         run_cluster_use(cluster_id)
         center.update_ip_port()
         center.stop_redis()
-        if clean:
-            center.remove_all_of_redis_log_force()
-            center.cluster_clean()
+        center.remove_all_of_redis_log_force()
+        center.cluster_clean()
         run_cluster_use(cur_cluster_id)
 
     # backup conf

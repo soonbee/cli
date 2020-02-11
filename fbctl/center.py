@@ -1244,3 +1244,17 @@ class Center(object):
                 msg = 'Not exist alive slave: {}'.format(master['addr'])
                 raise ClusterRedisError(msg)
         return slaves_for_failover
+
+    def check_port_is_enable(self, host_ports_list):
+        command = 'netstat -tnlp | grep LISTEN | awk \'{print $4}\''
+        conflict = []
+        for host, ports in host_ports_list:
+            client = net.get_ssh(host)
+            _, stdout, _ = net.ssh_execute(client, command)
+            in_use_list = utils.to_str(stdout.strip()).split()
+            in_use_ports = set(map(lambda x: x.split(':')[-1], in_use_list))
+            for port in ports:
+                port = str(port)
+                if port in in_use_ports:
+                    conflict.append([host, port])
+        return conflict
