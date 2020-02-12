@@ -2,7 +2,7 @@ import os
 from functools import reduce
 import time
 
-from fbctl import color, config, cluster_util
+from fbctl import color, config, cluster_util, net, utils
 from fbctl.center import Center
 from fbctl.log import logger
 from fbctl.rediscli_util import RedisCliUtil
@@ -447,3 +447,72 @@ class Cluster(object):
     def _print(self, text):
         if self._print_mode == 'screen':
             logger.info(text)
+
+    def restore(self, cluster_id, tag):
+        if not cluster_util.validate_id(cluster_id):
+            raise ClusterIdError(cluster_id)
+        # find restore folder with tag (local)
+        path_of_fb = config.get_path_of_fb(cluster_id)
+        cluster_backup_path = path_of_fb['cluster_backup_path']
+        cluster_restore_dir = tag
+        backup_path = os.path.join(cluster_backup_path, cluster_restore_dir)
+        logger.info(backup_path)
+        if not os.path.isdir(backup_path):
+            logger.error("TagNotExistError: {}".format(tag))
+            return
+
+        # get hosts from cluster props
+        props_path = os.path.join(
+            backup_path,
+            'tsr2-assembly-1.0.0-SNAPSHOT',
+            'conf',
+            'redis.properties'
+        )
+        hosts = config.get_props(props_path, 'sr2_redis_master_hosts', [])
+
+        # check status of hosts
+        success = Center().check_hosts_connection(hosts, True)
+        if not success:
+            logger.error('There are unavailable host.')
+            return
+        logger.debug('Connection of all hosts ok.')
+        success = Center().check_include_localhost(hosts)
+        if not success:
+            logger.error('Must include localhost.')
+            return
+
+        # check all host tag folder: OK / NOT FOUND
+        logger.info('Check backup info...')
+        buf = []
+        for host in hosts:
+            client = net.get_ssh(host)
+            if not net.is_dir(client, backup_path):
+                logger.debug('cannot find backup dir: {}-{}'.format(
+                    host,
+                    cluster_restore_dir
+                ))
+                buf.append([host, color.red('NOT FOUND')])
+            client.close()
+        if buf:
+            utils.print_table([['HOST', 'RESULT'] + buf])
+            return
+        logger.info('OK')
+
+        # backup cluster
+        new_tag = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+        cluster_backup_dir = 'cluster_{}_bak_{}'.format(cluster_id, new_tag)
+        for host in hosts:
+            Center().cluster_backup(host, cluster_id, cluster_backup_dir)
+
+        # restore cluster
+        command = "cp -r {} {}/cluster_{}".format(
+            backup_path,
+            path_of_fb['base_directory'],
+            cluster_id
+        )
+        for host in hosts:
+            logger.info("Restore {} at {}".format(cluster_restore_dir, host))
+            client = net.get_ssh(host)
+            net.ssh_execute(client, command)
+            client.close()
+            logger.info("OK")

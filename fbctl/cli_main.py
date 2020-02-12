@@ -867,6 +867,9 @@ def main(cluster_id, debug, version):
                 text = text.replace('fbctl', '')
                 logger.info('> You can use "%s" instead of "%s"' % (text, old))
             _handle(text)
+        except ClusterNotExistError:
+            run_cluster_use(-1)
+            continue
         except KeyboardInterrupt:
             continue
         except EOFError:
