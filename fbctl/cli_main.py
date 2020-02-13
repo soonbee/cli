@@ -5,6 +5,7 @@ import os
 import time
 import shutil
 import socket
+import subprocess as sp
 
 import click
 import fire
@@ -61,7 +62,7 @@ user_info = {
 }
 
 
-def run_monitor(n=10):
+def run_monitor(n=10, t=2):
     """Run monitor command
 
     Monitor remote logs
@@ -69,15 +70,35 @@ def run_monitor(n=10):
     if not isinstance(n, int):
         logger.error("option '--n' can use only number")
         return
-    host_list = config.get_master_host_list()
+    if not isinstance(t, int) and not isinstance(t, float):
+        logger.error("option '--t' can use only number(include float)")
+        return
+    try:
+        sp.check_output('which tail', shell=True)
+    except Exception:
+        logger.error('Need to linux command tail')
+        return
     cluster_id = config.get_cur_cluster_id()
-    target_host = ask_util.host_for_monitor(host_list)
-    logger.info('Press Ctrl-C for exit.')
-    client = net.get_ssh(target_host)
     path_of_fb = config.get_path_of_fb(cluster_id)
     sr2_redis_log = path_of_fb['sr2_redis_log']
-    command = 'tail -F -n {} {}/servers*'.format(n, sr2_redis_log)
-    net.ssh_execute_async(client, command)
+    log_files = '{}/servers*'.format(sr2_redis_log)
+    host_list = config.get_master_host_list()
+    target_host = ask_util.host_for_monitor(host_list)
+    try:
+        sp.check_output('which watch', shell=True)
+        command = "ssh -t {} watch -n {} 'tail -n {} {}'".format(
+            target_host,
+            t,
+            n,
+            log_files
+        )
+        sp.call(command, shell=True)
+    except Exception:
+        logger.warning("Cannot found command 'watch'. Option '--n' ignored")
+        logger.info('Press Ctrl-C for exit.')
+        command = "tail -F -s {} {}".format(t, log_files)
+        client = net.get_ssh(target_host)
+        net.ssh_execute_async(client, command)
 
 
 # def run_deploy_v3(cluster_id=None, history_save=True, force=False):
