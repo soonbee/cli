@@ -524,3 +524,14 @@ class Cluster(object):
             lines = version_file.readlines()
             logger.info("".join(lines).strip())
 
+    def delete(self, cluster_id):
+        if not cluster_util.validate_id(cluster_id):
+            raise ClusterIdError(cluster_id)
+        path_of_fb = config.get_path_of_fb(cluster_id)
+        props_path = path_of_fb['redis_properties']
+        hosts = config.get_props(props_path, 'sr2_redis_master_hosts', [])
+        tag = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+        cluster_backup_dir = 'cluster_{}_bak_{}'.format(cluster_id, tag)
+        for host in hosts:
+            Center().cluster_backup(host, cluster_id, cluster_backup_dir)
+        logger.info("Complete to delete cluster {}".format(cluster_id))
