@@ -314,10 +314,13 @@ class Center(object):
             sftp = net.get_sftp(client)
             sftp.mkdir(cluster_backup_path)
             sftp.close()
-        command = 'mv {} {}'.format(cluster_path, cluster_backup_tag_path)
-        net.ssh_execute(client=client, command=command)
+        if net.is_dir(client, cluster_path):
+            command = 'mv {} {}'.format(cluster_path, cluster_backup_tag_path)
+            net.ssh_execute(client=client, command=command)
+            logger.info('OK, {}'.format(tag))
+        else:
+            logger.warning("SKIP, cannot found {}".format(cluster_path))
         client.close()
-        logger.info('OK, {}'.format(tag))
 
     def conf_restore(self, host, cluster_id, tag):
         logger.info('Restore conf to cluster {}...'.format(cluster_id))

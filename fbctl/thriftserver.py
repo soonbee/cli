@@ -129,7 +129,7 @@ class ThriftServer(object):
         logger.debug(cmd)
         os.system(cmd)
 
-    def monitor(self, n=10):
+    def monitor(self):
         """Show thriftserver log
         """
         logger.debug('thriftserver_command_monitor')
@@ -147,7 +147,7 @@ class ThriftServer(object):
         log_file_path = os.path.join(spark_log, NOHUP_LOGFILE)
         if _find_files_with_regex(spark_log, ROLLING_LOGFILE_REGEX):
             log_file_path = os.path.join(spark_log, ROLLING_LOGFILE)
-        base_cmd = 'tail -F -n {} {}'.format(n, log_file_path)
+        base_cmd = 'tail -F {}'.format(log_file_path)
         cmd = '{}; {}'.format(source_cmd, base_cmd)
         logger.debug(cmd)
         logger.info('Press Ctrl-C for exit.')
