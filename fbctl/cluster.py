@@ -516,3 +516,11 @@ class Cluster(object):
             net.ssh_execute(client, command)
             client.close()
             logger.info("OK")
+
+    def version(self):
+        cluster_id = config.get_cur_cluster_id()
+        tsr2_home = config.get_tsr2_home(cluster_id)
+        with open(os.path.join(tsr2_home, "VERSION"), "r") as version_file:
+            lines = version_file.readlines()
+            logger.info("".join(lines).strip())
+
