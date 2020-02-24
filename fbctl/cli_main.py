@@ -589,6 +589,7 @@ def _deploy(cluster_id, history_save, clean):
 
     logger.info('Complete to deploy cluster {}.'.format(cluster_id))
     Cluster().use(cluster_id)
+    logger.info('We suggest that you begin by typing: cluster create')
 
 
 def run_cluster_use(cluster_id):

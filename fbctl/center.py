@@ -319,7 +319,10 @@ class Center(object):
             net.ssh_execute(client=client, command=command)
             logger.info('OK, {}'.format(tag))
         else:
-            logger.warning("SKIP, cannot found {}".format(cluster_path))
+            logger.warning("Skip backup at {}, cannot found {}".format(
+                host,
+                cluster_path
+            ))
         client.close()
 
     def conf_restore(self, host, cluster_id, tag):
@@ -418,13 +421,21 @@ class Center(object):
                 meta.append([node, port, 'SLAVE'])
         table = AsciiTable(meta)
         print(table.table)
-        print('replicas: {}\n'.format(replicas))
+        if replicas > 0:
+            print('replicas: {}'.format(replicas))
+        print('')
         if skip:
             return True
-        msg = [
-            'Do you want to proceed with the replicate ',
-            'according to the above information?',
-        ]
+        if replicas > 0:
+            msg = [
+                'Do you want to proceed with replicate ',
+                'according to the above information?',
+            ]
+        else:
+            msg = [
+                'Do you want to proceed with cluster create ',
+                'according to the above information?',
+            ]
         yes = ask_util.askBool(''.join(msg), ['y', 'n'])
         return yes
 

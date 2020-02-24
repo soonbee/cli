@@ -516,3 +516,22 @@ class Cluster(object):
             net.ssh_execute(client, command)
             client.close()
             logger.info("OK")
+
+    def version(self):
+        cluster_id = config.get_cur_cluster_id()
+        tsr2_home = config.get_tsr2_home(cluster_id)
+        with open(os.path.join(tsr2_home, "VERSION"), "r") as version_file:
+            lines = version_file.readlines()
+            logger.info("".join(lines).strip())
+
+    def delete(self, cluster_id):
+        if not cluster_util.validate_id(cluster_id):
+            raise ClusterIdError(cluster_id)
+        path_of_fb = config.get_path_of_fb(cluster_id)
+        props_path = path_of_fb['redis_properties']
+        hosts = config.get_props(props_path, 'sr2_redis_master_hosts', [])
+        tag = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+        cluster_backup_dir = 'cluster_{}_bak_{}'.format(cluster_id, tag)
+        for host in hosts:
+            Center().cluster_backup(host, cluster_id, cluster_backup_dir)
+        logger.info("Complete to delete cluster {}".format(cluster_id))
