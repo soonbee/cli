@@ -448,15 +448,28 @@ class Cluster(object):
         if self._print_mode == 'screen':
             logger.info(text)
 
-    def restore(self, cluster_id, tag):
+    def restore(self, cluster_id, tag=None):
+        logger.debug('cluster restore: cluster_id={}, tag={}'.format(
+            cluster_id,
+            tag
+        ))
         if not cluster_util.validate_id(cluster_id):
             raise ClusterIdError(cluster_id)
         # find restore folder with tag (local)
         path_of_fb = config.get_path_of_fb(cluster_id)
         cluster_backup_path = path_of_fb['cluster_backup_path']
+        if tag is None:
+            backup_list = os.listdir(cluster_backup_path)
+            pattern = 'cluster_{}_bak_'.format(cluster_id)
+            filtered = filter(lambda x: x.startswith(pattern), backup_list)
+            sorted_list = sorted(list(filtered))
+            if not sorted_list:
+                logger.error("Cannot find any backup")
+                return
+            tag = sorted_list[-1]
+            logger.debug("tag option is empty, auto select: {}".format(tag))
         cluster_restore_dir = tag
         backup_path = os.path.join(cluster_backup_path, cluster_restore_dir)
-        logger.info(backup_path)
         if not os.path.isdir(backup_path):
             logger.error("TagNotExistError: {}".format(tag))
             return
