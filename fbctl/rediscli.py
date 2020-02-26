@@ -113,17 +113,12 @@ class RedisCliConfig(object):
                 if result == 'OK':
                     if message:
                         _, value = message.split('\n')
-                        value = utils.convert_2_human_readable(key, value)
                         meta.append([m_s, addr, value])
                     else:
                         meta.append([m_s, addr, color.red('Invalid Key')])
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-            if self._is_cluster_unit(key):
-                value = self._convert_2_cluster_limit(ret)
-                value = utils.convert_2_human_readable(key, value)
-                logger.info('cluster unit: {}'.format(value))
         else:
             output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
@@ -133,7 +128,7 @@ class RedisCliConfig(object):
             output = output.strip()
             if output:
                 key, value = output.split('\n')
-                logger.info(utils.convert_2_human_readable(key, value))
+                logger.info(value)
             else:
                 logger.error("Invalid Key: {}".format(key))
 
