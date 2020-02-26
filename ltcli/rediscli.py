@@ -2,13 +2,13 @@ from __future__ import print_function
 
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl import utils
-from fbctl import color
-from fbctl.center import Center
-from fbctl.rediscli_util import RedisCliUtil
-from fbctl.utils import TableReport
-from fbctl.log import logger
+from ltcli import config
+from ltcli import utils
+from ltcli import color
+from ltcli.center import Center
+from ltcli.rediscli_util import RedisCliUtil
+from ltcli.utils import TableReport
+from ltcli.log import logger
 
 
 class RedisCliInfo(object):

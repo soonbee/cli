@@ -1,6 +1,6 @@
 from os import environ
 
-from fbctl import config
+from ltcli import config
 
 
 def get_cli_prompt():
@@ -14,7 +14,7 @@ def get_cli_prompt():
         cluster_id = '-'
     user = environ['USER']
     prompt_classname = u'class:ansiwhite'
-    prompt_message = u'{}@flashbase:{}> '.format(user, cluster_id)
+    prompt_message = u'{}@lightningdb:{}> '.format(user, cluster_id)
     return [(prompt_classname, prompt_message)]
 
 
@@ -29,5 +29,5 @@ def get_sql_prompt():
         cluster_id = '-'
     user = environ['USER']
     prompt_classname = u'class:ansigreen'
-    prompt_message = u'({}){}@flashbase:sql> '.format(cluster_id, user)
+    prompt_message = u'({}){}@lightningdb:sql> '.format(cluster_id, user)
     return [(prompt_classname, prompt_message)]

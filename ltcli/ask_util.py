@@ -5,10 +5,10 @@ import re
 # using like 'ask_util.askBool'
 from ask import ask, askInt, askBool
 
-from fbctl.log import logger
-from fbctl import config
-from fbctl import net
-from fbctl import utils
+from ltcli.log import logger
+from ltcli import config
+from ltcli import net
+from ltcli import utils
 
 
 START_PORT = 18000
@@ -341,7 +341,7 @@ def ssd_count(save, default=None):
 
 def base_directory(default='~/tsr2'):
     logger.debug('ask base directory')
-    result = ask('Type base directory of flashbase', default=default)
+    result = ask('Type base directory for lightningdb', default=default)
     if not result.startswith(('~', '/')):
         logger.error("Invalid path: '{}', try again".format(result))
         return base_directory()

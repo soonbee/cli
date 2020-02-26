@@ -4,10 +4,10 @@ import sys
 from prompt_toolkit.styles import Style
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl import editor
-from fbctl.log import logger
-from fbctl.exceptions import ConvertError
+from ltcli import config
+from ltcli import editor
+from ltcli.log import logger
+from ltcli.exceptions import ConvertError
 
 
 class TermColor:

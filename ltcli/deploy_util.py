@@ -1,10 +1,10 @@
 import os
 
-from fbctl import config
-from fbctl import utils
-from fbctl import net
-from fbctl.log import logger
-from fbctl.exceptions import PropsKeyError, FileNotExistError
+from ltcli import config
+from ltcli import utils
+from ltcli import net
+from ltcli.log import logger
+from ltcli.exceptions import PropsKeyError, FileNotExistError
 
 
 CLEAN = 101

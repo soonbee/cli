@@ -2,17 +2,17 @@ import os
 from functools import reduce
 import time
 
-from fbctl import color
-from fbctl import config
-from fbctl import cluster_util
-from fbctl.center import Center
-from fbctl.log import logger
-from fbctl.rediscli_util import RedisCliUtil
-from fbctl.redistrib2.custom_trib import rebalance_cluster_cmd
-from fbctl.exceptions import (
+from ltcli import color
+from ltcli import config
+from ltcli import cluster_util
+from ltcli.center import Center
+from ltcli.log import logger
+from ltcli.rediscli_util import RedisCliUtil
+from ltcli.redistrib2.custom_trib import rebalance_cluster_cmd
+from ltcli.exceptions import (
     ClusterIdError,
     ClusterNotExistError,
-    FlashbaseError,
+    LightningDBError,
     ClusterRedisError
 )
 
@@ -83,7 +83,7 @@ class Cluster(object):
                     'We estimate that ',
                     "redis 'MASTER' processes is {}".format(master_alive_count)
                 ]
-                raise FlashbaseError(11, ''.join(msg))
+                raise LightningDBError(11, ''.join(msg))
         slave_alive_count = center.get_alive_slave_redis_count()
         if slave:
             if slave_alive_count > 0:
@@ -93,7 +93,7 @@ class Cluster(object):
                     'We estimate that ',
                     "redis 'SLAVE' processes is {}".format(slave_alive_count)
                 ]
-                raise FlashbaseError(12, ''.join(msg))
+                raise LightningDBError(12, ''.join(msg))
         center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()
 
@@ -305,7 +305,7 @@ class Cluster(object):
                 'We estimate that ',
                 "redis 'SLAVE' processes is {}".format(slave_alive_count)
             ]
-            raise FlashbaseError(12, ''.join(msg))
+            raise LightningDBError(12, ''.join(msg))
 
         # confirm info
         result = center.confirm_node_port_info(skip=yes)

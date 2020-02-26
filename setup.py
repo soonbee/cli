@@ -9,7 +9,7 @@ with open('requirements.txt') as file_requirements:
     requirements = file_requirements.read().splitlines()
 
 about = {}
-with open(os.path.join(here, 'fbctl', '__version__.py'), 'r') as f:
+with open(os.path.join(here, 'ltcli', '__version__.py'), 'r') as f:
     exec(f.read(), about)
 
 setup(
@@ -26,7 +26,7 @@ setup(
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'fbctl = fbctl.cli_main:main'
+            'ltcli = ltcli.cli_main:main'
         ]
     },
     classifiers=[

@@ -1,7 +1,7 @@
-from fbctl import utils
-from fbctl.log import logger
-from fbctl import color
-from fbctl.rediscli import (
+from ltcli import utils
+from ltcli.log import logger
+from ltcli import color
+from ltcli.rediscli import (
     RedisCliCluster,
     RedisCliConfig,
     RedisCliInfo,
