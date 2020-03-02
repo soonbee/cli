@@ -5,8 +5,8 @@ import re
 # using like 'ask_util.askBool'
 from ask import ask, askInt, askBool
 
-from fbctl.log import logger
-from fbctl import config, net, utils, message
+from ltcli.log import logger
+from ltcli import config, net, utils, message
 
 
 START_PORT = 18000

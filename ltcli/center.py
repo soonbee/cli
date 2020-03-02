@@ -7,12 +7,12 @@ import shutil
 
 from terminaltables import AsciiTable
 
-from fbctl import config, net, utils, ask_util, color, message
-from fbctl.log import logger
-from fbctl.rediscli_util import RedisCliUtil
-from fbctl.redistrib2 import command as trib
-from fbctl.deploy_util import DeployUtil, DEPLOYED
-from fbctl.exceptions import (
+from ltcli import config, net, utils, ask_util, color, message
+from ltcli.log import logger
+from ltcli.rediscli_util import RedisCliUtil
+from ltcli.redistrib2 import command as trib
+from ltcli.deploy_util import DeployUtil, DEPLOYED
+from ltcli.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,

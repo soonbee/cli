@@ -1,7 +1,7 @@
 import os
 
-from fbctl.log import logger
-from fbctl import config, utils
+from ltcli.log import logger
+from ltcli import config, utils
 
 
 def validate_id(cluster_id):

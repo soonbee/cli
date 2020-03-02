@@ -1,7 +1,7 @@
 import json
 import os
 
-from fbctl import color
+from ltcli import color
 
 
 json_path = os.path.join(

@@ -11,9 +11,9 @@ import shutil
 import paramiko
 import requests
 
-from fbctl import parser, message
-from fbctl.log import logger
-from fbctl.exceptions import (
+from ltcli import parser, message
+from ltcli.log import logger
+from ltcli.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,

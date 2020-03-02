@@ -3,9 +3,9 @@ import os
 import re
 import time
 
-from fbctl import config, message
-from fbctl.log import logger
-from fbctl.exceptions import FileNotExistError, EnvError
+from ltcli import config, message
+from ltcli.log import logger
+from ltcli.exceptions import FileNotExistError, EnvError
 
 
 # pylint: disable=line-too-long, anomalous-backslash-in-string

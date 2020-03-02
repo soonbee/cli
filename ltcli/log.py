@@ -4,7 +4,7 @@ import sys
 from logbook import Logger, Processor, StreamHandler, RotatingFileHandler
 from logbook import DEBUG, INFO, WARNING, ERROR
 
-from fbctl import color, message
+from ltcli import color, message
 
 
 def get_log_color(level):
@@ -89,7 +89,7 @@ if os.path.isdir(file_path):
     max_size = 1024 * 1024 * 1024  # 1Gi
     file_level = DEBUG
     each_size = max_size / (backup_count + 1)
-    filename = os.path.join(file_path, 'fbctl-rotate.log')
+    filename = os.path.join(file_path, 'ltcli-rotate.log')
     rotating_file_handler = RotatingFileHandler(
         filename=filename,
         level=file_level,

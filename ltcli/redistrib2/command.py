@@ -7,8 +7,8 @@ import sys
 from retrying import retry
 from six.moves import range
 
-from fbctl import message
-from fbctl.log import logger
+from ltcli import message
+from ltcli.log import logger
 from .clusternode import ClusterNode, base_balance_plan
 from .connection import (
     CMD_CLUSTER_INFO,

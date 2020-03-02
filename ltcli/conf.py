@@ -2,9 +2,9 @@ import os
 import shutil
 
 
-from fbctl import config, editor, ask_util, message
-from fbctl.log import logger
-from fbctl.center import Center
+from ltcli import config, editor, ask_util, message
+from ltcli.log import logger
+from ltcli.center import Center
 
 
 class Conf(object):

@@ -1,8 +1,8 @@
-from fbctl import message as m
+from ltcli import message as m
 
 
-class FbctlBaseError(Exception):
-    '''base error for fbctl'''
+class LtcliBaseError(Exception):
+    '''base error for ltcli'''
     def __init__(self, message, *args):
         Exception.__init__(self, message, *args)
         self.message = message
@@ -15,93 +15,93 @@ class FbctlBaseError(Exception):
         return self.__class__.__name__
 
 
-class FlashbaseError(FbctlBaseError):
+class LightningDBError(LtcliBaseError):
     def __init__(self, error_code, message, *args):
         self.error_code = error_code
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class ConvertError(FbctlBaseError):
+class ConvertError(LtcliBaseError):
     def __init__(self, message, *args):
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class PropsKeyError(FbctlBaseError):
+class PropsKeyError(LtcliBaseError):
     def __init__(self, key, *args):
         msg = m.get('error_need_props_key')
         message = msg.format(key=key.upper())
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class PropsError(FbctlBaseError):
+class PropsError(LtcliBaseError):
     def __init__(self, message, *args):
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class FileNotExistError(FbctlBaseError):
+class FileNotExistError(LtcliBaseError):
     def __init__(self, file_path, **kwargs):
         message = "'{}'".format(file_path)
         if 'host' in kwargs.keys():
             self.host = kwargs['host']
             message = "'{}' at '{}'".format(file_path, self.host)
-        FbctlBaseError.__init__(self, message, *kwargs)
+        LtcliBaseError.__init__(self, message, *kwargs)
 
 
-class SSHConnectionError(FbctlBaseError):
+class SSHConnectionError(LtcliBaseError):
     def __init__(self, host, *args):
         msg = m.get('error_ssh_connection')
         message = msg.format(host=host)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class HostConnectionError(FbctlBaseError):
+class HostConnectionError(LtcliBaseError):
     def __init__(self, host, *args):
         msg = m.get('error_host_connection')
         message = msg.format(host=host)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class HostNameError(FbctlBaseError):
+class HostNameError(LtcliBaseError):
     def __init__(self, host, *args):
         msg = m.get('error_unknown_host')
         message = msg.format(host=host)
         message = "Unknown host name '{}'".format(host)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class YamlSyntaxError(FbctlBaseError):
+class YamlSyntaxError(LtcliBaseError):
     def __init__(self, file_path, *args):
-        FbctlBaseError.__init__(self, "'{}'".format(file_path), *args)
+        LtcliBaseError.__init__(self, "'{}'".format(file_path), *args)
 
 
-class PropsSyntaxError(FbctlBaseError):
+class PropsSyntaxError(LtcliBaseError):
     def __init__(self, line, line_number, *args):
         message = "'{}' at line {}".format(line, line_number)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class ClusterIdError(FbctlBaseError):
+class ClusterIdError(LtcliBaseError):
     def __init__(self, cluster_id, *args):
         message = m.get('error_cluster_id').format(cluster_id=cluster_id)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class ClusterNotExistError(FbctlBaseError):
+class ClusterNotExistError(LtcliBaseError):
     def __init__(self, cluster_id, **kwargs):
         message = m.get('error_cluster_not_exist')
         message = message.format(cluster_id=cluster_id)
         if 'host' in kwargs.keys():
             self.host = kwargs['host']
             message = "{} at '{}'".format(message, self.host)
-        FbctlBaseError.__init__(self, message, *kwargs)
+        LtcliBaseError.__init__(self, message, *kwargs)
 
 
-class ClusterRedisError(FbctlBaseError):
+class ClusterRedisError(LtcliBaseError):
     def __init__(self, message, *args):
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class SSHCommandError(FbctlBaseError):
+class SSHCommandError(LtcliBaseError):
     def __init__(self, exit_status, host, stderr, *args):
         self.exit_status = exit_status
         self.host = host
@@ -111,16 +111,16 @@ class SSHCommandError(FbctlBaseError):
             host=host,
             stderr=stderr
         )
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class CreateDirError(FbctlBaseError):
+class CreateDirError(LtcliBaseError):
     def __init__(self, message, dir_path, *args):
         self.dir_path = dir_path
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)
 
 
-class EnvError(FbctlBaseError):
+class EnvError(LtcliBaseError):
     def __init__(self, env, *args):
         message = m.get('error_env').format(env=env)
-        FbctlBaseError.__init__(self, message, *args)
+        LtcliBaseError.__init__(self, message, *args)

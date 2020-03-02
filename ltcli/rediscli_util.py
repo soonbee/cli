@@ -7,8 +7,8 @@ import subprocess
 from threading import Thread
 import time
 
-from fbctl import config, utils, message
-from fbctl.log import logger
+from ltcli import config, utils, message
+from ltcli.log import logger
 
 
 class RedisCliUtil(object):

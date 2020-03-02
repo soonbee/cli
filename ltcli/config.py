@@ -7,8 +7,8 @@ import shutil
 
 import yaml
 
-from fbctl.log import logger
-from fbctl.exceptions import (
+from ltcli.log import logger
+from ltcli.exceptions import (
     YamlSyntaxError,
     PropsSyntaxError,
     ClusterIdError,

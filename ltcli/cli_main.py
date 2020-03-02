@@ -18,7 +18,7 @@ from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers.sql import SqlLexer
 import paramiko
 
-from fbctl import (
+from ltcli import (
     log,
     net,
     config,
@@ -30,15 +30,15 @@ from fbctl import (
     editor,
     message
 )
-from fbctl.log import logger
-from fbctl.cli import Cli
-from fbctl.cluster import Cluster
-from fbctl.center import Center
-from fbctl.conf import Conf
-from fbctl.thriftserver import ThriftServer
-from fbctl.deploy_util import DeployUtil, DEPLOYED, PENDING
-from fbctl.rediscli import RedisCliConfig
-from fbctl.exceptions import (
+from ltcli.log import logger
+from ltcli.cli import Cli
+from ltcli.cluster import Cluster
+from ltcli.center import Center
+from ltcli.conf import Conf
+from ltcli.thriftserver import ThriftServer
+from ltcli.deploy_util import DeployUtil, DEPLOYED, PENDING
+from ltcli.rediscli import RedisCliConfig
+from ltcli.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,
@@ -50,7 +50,7 @@ from fbctl.exceptions import (
     ClusterIdError,
     ClusterNotExistError,
     ClusterRedisError,
-    FlashbaseError,
+    LightningDBError,
     SSHCommandError,
     EnvError,
 )
@@ -113,7 +113,7 @@ def run_deploy(
         clean=False,
         strategy="none"
 ):
-    """Install flashbase package.
+    """Install LightningDB package.
 
     :param cluster_id: cluster id
     :param history_save: save input history and use as default
@@ -624,7 +624,7 @@ def run_cluster_use(cluster_id):
 
 
 def run_exit():
-    """Exit fbctl.
+    """Exit ltcli.
     """
     # empty function for docs of fire
     pass
@@ -638,11 +638,11 @@ def run_clear():
 
 
 class Command(object):
-    """This is Flashbase command line.
+    """This is LightningDB command line.
 We use python-fire(https://github.com/google/python-fire)
 for automatically generating CLIs
 
-    - deploy: Install flashbase package
+    - deploy: Install LightningDB package
     - c: Alias of cluster use
     - cluster: Command Wrapper of trib.rb
     - cli: Command wrapper of redis-cli
@@ -651,7 +651,7 @@ for automatically generating CLIs
     - thriftserver: Thriftserver command
     - ths: Alias of thriftserver
     - ll: Change log level
-    - exit: Exit fbctl
+    - exit: Exit ltcli
     - clear: Clear screen
  """
 
@@ -723,7 +723,7 @@ def _handle(text):
             EnvError,
     ) as ex:
         logger.error('{}: {}'.format(ex.class_name(), str(ex)))
-    except FlashbaseError as ex:
+    except LightningDBError as ex:
         logger.error('[ErrorCode {}] {}'.format(ex.error_code, str(ex)))
     except BaseException as ex:
         logger.exception(ex)
@@ -776,7 +776,7 @@ def print_version():
     with open(os.path.join(here, '__version__.py'), 'r') as f:
         exec(f.read(), about)
     version = about['__version__']
-    print('fbctl version {}'.format(version))
+    print('ltcli version {}'.format(version))
 
 
 @click.command()
@@ -791,7 +791,7 @@ def main(cluster_id, debug, version):
     if debug:
         log.set_mode('debug')
 
-    logger.debug('Start fbctl')
+    logger.debug('Start ltcli')
 
     cluster_id = _validate_cluster_id(cluster_id)
 
@@ -807,9 +807,9 @@ def main(cluster_id, debug, version):
             text = session.prompt(p, style=utils.style)
             if text == "exit":
                 break
-            if 'fbctl' in text:
+            if 'ltcli' in text:
                 old = text
-                text = text.replace('fbctl', '').strip()
+                text = text.replace('ltcli', '').strip()
                 msg = message.get('notify_command_replacement_is_possible')
                 msg = msg.format(new=text, old=old)
                 logger.info(msg)

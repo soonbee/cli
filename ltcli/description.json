@@ -1,9 +1,9 @@
 {
-    "fbctl": [
-        "This is FlashBase command line",
+    "ltcli": [
+        "This is LightningDB command line",
         "We use python-fire(https://github.com/google/python-fire) for automatically generating CLIs",
         "",
-        "    - deploy: Install flashbase package",
+        "    - deploy: Install LightningDB package",
         "    - c: Alias of cluster use",
         "    - cluster: Command Wrapper of trib.rb",
         "    - cli: Command wrapper of redis-cli",
@@ -12,11 +12,11 @@
         "    - thriftserver: Thriftserver command",
         "    - ths: Alias of thriftserver",
         "    - ll: Change log level",
-        "    - exit: Exit fbctl",
+        "    - exit: Exit ltcli",
         "    - clear: Clear screen"
     ],
     "deploy": [
-        "Install flashbase package",
+        "Install LightningDB package",
         "",
         ":param cluster_id: cluster id",
         ":param history_save: save input history and use as default",
@@ -39,7 +39,7 @@
         "    :param level: debug / info / warning / error"
     ],
     "clear": "Clear screen",
-    "exit": "Exit fbctl",
+    "exit": "Exit ltcli",
     "cluster": "Command Wrapper of trib.rb",
     "cluster_stop": [
         "Stop cluster",
