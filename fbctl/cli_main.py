@@ -155,6 +155,7 @@ def run_deploy(
         logger.error(msg)
         return
     if strategy == "zero-downtime":
+        run_cluster_use(cluster_id)
         _deploy_zero_downtime(cluster_id)
         return
     _deploy(cluster_id, history_save, clean)
