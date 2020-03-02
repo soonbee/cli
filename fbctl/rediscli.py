@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from terminaltables import AsciiTable
 
-from fbctl import config, utils, color
+from fbctl import config, utils, color, message as m
 from fbctl.center import Center
 from fbctl.rediscli_util import RedisCliUtil
 from fbctl.log import logger
@@ -99,10 +99,13 @@ class RedisCliConfig(object):
         :param port: port
         """
         if not isinstance(all, bool):
-            logger.error("option '--all' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='all')
+            logger.error(msg)
             return
         if (not host or not port) and not all:
-            logger.error("Enter host and port or use '--all' option.")
+            msg = m.get('use_host_port_or_option_all')
+            logger.error(msg)
             return
         sub_cmd = 'config get "{key}" 2>&1'.format(key=key)
         if all:
@@ -135,7 +138,8 @@ class RedisCliConfig(object):
                 key, value = output.split('\n')
                 logger.info(utils.convert_2_human_readable(key, value))
             else:
-                logger.error("Invalid Key: {}".format(key))
+                msg = m.get('error_invalid_key').format(key=key)
+                logger.error(msg)
 
     def set(self, key, value, all=False, save=False, host=None, port=None):
         """Command: cli config set [key] [value]
@@ -148,13 +152,18 @@ class RedisCliConfig(object):
         :param port: port
         """
         if not isinstance(all, bool):
-            logger.error("option '--all' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='all')
+            logger.error(msg)
             return
         if not isinstance(save, bool):
-            logger.error("option '--save' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='save')
+            logger.error(msg)
             return
         if (not host or not port) and not all:
-            logger.error("Enter host and port or use '--all' option.")
+            msg = m.get('use_host_port_or_option_all')
+            logger.error(msg)
             return
         sub_cmd = 'config set {key} {value} 2>&1'.format(key=key, value=value)
         if all:

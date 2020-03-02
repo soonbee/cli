@@ -1,3 +1,6 @@
+from fbctl import message as m
+
+
 class FbctlBaseError(Exception):
     '''base error for fbctl'''
     def __init__(self, message, *args):
@@ -25,7 +28,8 @@ class ConvertError(FbctlBaseError):
 
 class PropsKeyError(FbctlBaseError):
     def __init__(self, key, *args):
-        message = "{} cannot empty in props".format(key.upper())
+        msg = m.get('error_need_props_key')
+        message = msg.format(key=key.upper())
         FbctlBaseError.__init__(self, message, *args)
 
 
@@ -45,18 +49,22 @@ class FileNotExistError(FbctlBaseError):
 
 class SSHConnectionError(FbctlBaseError):
     def __init__(self, host, *args):
-        message = "SSH connection fail to '{}'".format(host)
+        msg = m.get('error_ssh_connection')
+        message = msg.format(host=host)
         FbctlBaseError.__init__(self, message, *args)
 
 
 class HostConnectionError(FbctlBaseError):
     def __init__(self, host, *args):
-        message = "Host connection fail to '{}'".format(host)
+        msg = m.get('error_host_connection')
+        message = msg.format(host=host)
         FbctlBaseError.__init__(self, message, *args)
 
 
 class HostNameError(FbctlBaseError):
     def __init__(self, host, *args):
+        msg = m.get('error_unknown_host')
+        message = msg.format(host=host)
         message = "Unknown host name '{}'".format(host)
         FbctlBaseError.__init__(self, message, *args)
 
@@ -74,13 +82,14 @@ class PropsSyntaxError(FbctlBaseError):
 
 class ClusterIdError(FbctlBaseError):
     def __init__(self, cluster_id, *args):
-        message = "Invalid cluster id '{}'".format(cluster_id)
+        message = m.get('error_cluster_id').format(cluster_id=cluster_id)
         FbctlBaseError.__init__(self, message, *args)
 
 
 class ClusterNotExistError(FbctlBaseError):
     def __init__(self, cluster_id, **kwargs):
-        message = "Not exist cluster '{}'".format(cluster_id)
+        message = m.get('error_cluster_not_exist')
+        message = message.format(cluster_id=cluster_id)
         if 'host' in kwargs.keys():
             self.host = kwargs['host']
             message = "{} at '{}'".format(message, self.host)
@@ -97,10 +106,10 @@ class SSHCommandError(FbctlBaseError):
         self.exit_status = exit_status
         self.host = host
         self.stderr = stderr
-        message = "[ExitCode {}] Fail execute command at '{}': {}".format(
-            exit_status,
-            host,
-            stderr
+        message = m.get('error_ssh_command_execute').format(
+            code=exit_status,
+            host=host,
+            stderr=stderr
         )
         FbctlBaseError.__init__(self, message, *args)
 
@@ -113,5 +122,5 @@ class CreateDirError(FbctlBaseError):
 
 class EnvError(FbctlBaseError):
     def __init__(self, env, *args):
-        message = 'you should set env {}'.format(env)
+        message = m.get('error_env').format(env=env)
         FbctlBaseError.__init__(self, message, *args)

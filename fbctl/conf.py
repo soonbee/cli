@@ -2,7 +2,7 @@ import os
 import shutil
 
 
-from fbctl import config, editor, ask_util
+from fbctl import config, editor, ask_util, message
 from fbctl.log import logger
 from fbctl.center import Center
 
@@ -30,7 +30,8 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def master(self):
         """ edit 'redis-master.conf.template'
@@ -46,7 +47,8 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def slave(self):
         """edit 'redis-slave.conf.template'
@@ -62,7 +64,8 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def thriftserver(self):
         """edit 'thriftserver.properties'
@@ -78,7 +81,8 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def ths(self):
         """alias of thriftserver
@@ -88,8 +92,8 @@ class Conf(object):
     def _edit_conf(self, target_path, syntax=None):
         tmp_target_path = target_path + '.tmp'
         if os.path.exists(tmp_target_path):
-            q = 'There is a history of modification. Do you want to load?'
-            yes = ask_util.askBool(q)
+            msg = message.get('ask_load_history_of_previous_modification')
+            yes = ask_util.askBool(msg)
             if not yes:
                 os.remove(tmp_target_path)
         if not os.path.exists(tmp_target_path):

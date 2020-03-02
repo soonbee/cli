@@ -3,7 +3,7 @@ import os
 import re
 import time
 
-from fbctl import config
+from fbctl import config, message
 from fbctl.log import logger
 from fbctl.exceptions import FileNotExistError, EnvError
 
@@ -150,7 +150,8 @@ class ThriftServer(object):
         base_cmd = 'tail -F {}'.format(log_file_path)
         cmd = '{}; {}'.format(source_cmd, base_cmd)
         logger.debug(cmd)
-        logger.info('Press Ctrl-C for exit.')
+        msg = message.get('message_for_exit')
+        logger.info(msg)
         os.system(cmd)
 
     def restart(self):

@@ -7,7 +7,7 @@ import subprocess
 from threading import Thread
 import time
 
-from fbctl import config, utils
+from fbctl import config, utils, message
 from fbctl.log import logger
 
 
@@ -111,7 +111,6 @@ class RedisCliUtil(object):
         index = random.randrange(0, count)
         target = targets[index]
         ip, port = target
-        # logger.info('redis-cli connect to %s:%s' % (ip, port))
         outs = ''
         redis_cli = os.path.join(config.get_tsr2_home(), 'bin', 'redis-cli')
         env = utils.make_export_envs(ip, port)
@@ -234,6 +233,8 @@ class RedisCliUtil(object):
         path_of_fb = config.get_path_of_fb(cluster_id)
         master_template = path_of_fb['master_template']
         slave_template = path_of_fb['slave_template']
+        msg = message.get('save_config_to_template')
+        logger.info(msg)
         RedisCliUtil._save_config(master_template, key, value)
         RedisCliUtil._save_config(slave_template, key, value)
 
@@ -250,6 +251,7 @@ class RedisCliUtil(object):
                 print(line, end='')
         logger.debug('inplace: %d (%s)' % (inplace_count, f))
         if inplace_count == 1:
-            logger.info('save config(%s) success' % f)
+            logger.debug('save config(%s) success' % f)
         else:
-            logger.warn('save config(%s) fail(%d)' % (f, inplace_count))
+            msg = message.get('error_save_config').format(key=key, file=f)
+            logger.warning(msg)

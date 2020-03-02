@@ -2,7 +2,7 @@ import os
 from functools import reduce
 import time
 
-from fbctl import color, config, cluster_util, net, utils
+from fbctl import color, config, cluster_util, net, utils, message
 from fbctl.center import Center
 from fbctl.log import logger
 from fbctl.rediscli_util import RedisCliUtil
@@ -38,13 +38,19 @@ class Cluster(object):
         """Stop cluster
         """
         if not isinstance(force, bool):
-            logger.error("option '--force' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='force')
+            logger.error(msg)
             return
         if not isinstance(master, bool):
-            logger.error("option '--master' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='master')
+            logger.error(msg)
             return
         if not isinstance(slave, bool):
-            logger.error("option '--slave' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='slave')
+            logger.error(msg)
             return
         center = Center()
         center.update_ip_port()
@@ -58,13 +64,19 @@ class Cluster(object):
         """
         logger.debug("command 'cluster start'")
         if not isinstance(profile, bool):
-            logger.error("option '--profile' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='profile')
+            logger.error(msg)
             return
         if not isinstance(master, bool):
-            logger.error("option '--master' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='master')
+            logger.error(msg)
             return
         if not isinstance(slave, bool):
-            logger.error("option '--slave' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='slave')
+            logger.error(msg)
             return
         center = Center()
         center.update_ip_port()
@@ -75,22 +87,14 @@ class Cluster(object):
         if master:
             master_alive_count = center.get_alive_master_redis_count()
             if master_alive_count > 0:
-                msg = [
-                    'Fail to start master nodes... ',
-                    'Must be checked running master processes!\n',
-                    'We estimate that ',
-                    "redis 'MASTER' processes is {}".format(master_alive_count)
-                ]
+                msg = message.get('error_cluster_start_master_collision')
+                msg = msg.format(count=master_alive_count)
                 raise FlashbaseError(11, ''.join(msg))
         slave_alive_count = center.get_alive_slave_redis_count()
         if slave:
             if slave_alive_count > 0:
-                msg = [
-                    'Fail to start slave nodes... ',
-                    'Must be checked running slave processes!\n',
-                    'We estimate that ',
-                    "redis 'SLAVE' processes is {}".format(slave_alive_count)
-                ]
+                msg = message.get('error_cluster_start_master_collision')
+                msg = msg.format(count=slave_alive_count)
                 raise FlashbaseError(12, ''.join(msg))
         center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()
@@ -115,17 +119,15 @@ class Cluster(object):
 
         m_count = len(center.master_host_list) * len(center.master_port_list)
         if m_count < 3:
-            msg = [
-                'To create cluster, ',
-                '3 master processes should be included at least.',
-            ]
-            raise ClusterRedisError(''.join(msg))
+            msg = message.get('error_master_redis_less_than_3')
+            raise ClusterRedisError(msg)
 
         # if need to cluster start
         alive_count = center.get_alive_all_redis_count()
         my_alive_count = center.get_alive_all_redis_count(check_owner=True)
         if alive_count != my_alive_count:
-            raise ClusterRedisError('The port range is already taken.')
+            msg = message.get('error_cluster_start_port_collision')
+            raise ClusterRedisError(msg)
         all_count = len(center.all_host_list)
         if alive_count < all_count:
             logger.debug('cluster start in create')
@@ -174,7 +176,9 @@ class Cluster(object):
         """Clean cluster
         """
         if not isinstance(logs, bool):
-            logger.error("option '--logs' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='logs')
+            logger.error(msg)
             return
         center = Center()
         center.update_ip_port()
@@ -190,7 +194,8 @@ class Cluster(object):
         """
         _change_cluster(cluster_id)
         cluster_id = '-' if cluster_id == -1 else cluster_id
-        logger.info("Cluster '{}' selected.".format(cluster_id))
+        msg = message.get('use_cluster').format(cluster_id=cluster_id)
+        logger.info(msg)
 
     def ls(self):
         """Check cluster list"""
@@ -209,24 +214,34 @@ class Cluster(object):
         :param reset: If true, clean(rm data).
         """
         if not isinstance(force_stop, bool):
-            msg = [
-                "option '--force-stop' can use only ",
-                "'True' or 'False'",
-            ]
-            logger.error(''.join(msg))
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='force-stop')
+            logger.error(msg)
             return
         if not isinstance(reset, bool):
-            logger.error("option '--reset' can use only 'True' or 'False'")
-            return
-        if not isinstance(cluster, bool):
-            logger.error("option '--cluster' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='reset')
+            logger.error(msg)
             return
         if not reset and cluster:
-            msg = "option '--cluster' can used only with option '--reset'"
+            msg = message.get('error_option_use_with')
+            msg = msg.format(option='cluster', with_option='reset')
+            logger.error(msg)
+            return
+        if not isinstance(cluster, bool):
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='cluster')
             logger.error(msg)
             return
         if not cluster and yes:
+            msg = message.get('error_option_use_with')
+            msg = msg.format(option='yes', with_option='cluster')
             msg = "option '--yes' can used only with option '--cluster'"
+            logger.error(msg)
+            return
+        if not isinstance(yes, bool):
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='yes')
             logger.error(msg)
             return
         center = Center()
@@ -283,7 +298,9 @@ class Cluster(object):
         """
         logger.debug('add_slave')
         if not isinstance(yes, bool):
-            logger.error("option '--yes' can use only 'True' or 'False'")
+            msg = message.get('error_option_type_not_boolean')
+            msg = msg.format(option='yes')
+            logger.error(msg)
             return
         center = Center()
         center.update_ip_port()
@@ -291,21 +308,19 @@ class Cluster(object):
         s_hosts = center.slave_host_list
         s_ports = center.slave_port_list
         if not s_hosts:
-            raise ClusterRedisError('Slave host cannot empty')
+            msg = message.get('error_slave_host_empty')
+            raise ClusterRedisError(msg)
         if not s_ports:
-            raise ClusterRedisError('Slave port cannot empty')
+            msg = message.get('error_slave_port_empty')
+            raise ClusterRedisError(msg)
         success = center.check_hosts_connection(hosts=s_hosts)
         if not success:
             return
         center.ensure_cluster_exist()
         slave_alive_count = center.get_alive_slave_redis_count()
         if slave_alive_count > 0:
-            msg = [
-                'Fail to start slave nodes... ',
-                'Must be checked running slave processes!\n',
-                'We estimate that ',
-                "redis 'SLAVE' processes is {}".format(slave_alive_count)
-            ]
+            msg = message.get('error_cluster_start_slave_collision')
+            msg = msg.format(count=slave_alive_count)
             raise FlashbaseError(12, ''.join(msg))
 
         # confirm info
@@ -351,7 +366,7 @@ class Cluster(object):
         center = Center()
         center.update_ip_port()
         master_obj_list = center.get_master_obj_list()
-        msg = color.yellow('{} has no alive slave to proceed failover')
+        msg = color.yellow(message.get('error_no_alive_slave_for_failover'))
         all_alive = True
         for node in master_obj_list:
             if node['status'] != 'connected':
@@ -375,7 +390,8 @@ class Cluster(object):
                 if not success:
                     logger.info(msg.format(node['addr']))
         if all_alive:
-            logger.info('All master is alive')
+            msg = message.get('already_all_master_alive')
+            logger.info(msg)
 
     def failback(self):
         center = Center()
@@ -407,14 +423,19 @@ class Cluster(object):
             classified_paused_list[host].append(port)
         current_time = time.strftime("%Y%m%d-%H%M", time.gmtime())
         for host, ports in classified_disconnected_list.items():
-            logger.info('run {}:{}'.format(host, '|'.join(ports)))
+            msg = message.get('redis_run')
+            msg = msg.format(host=host, port='|'.join(ports))
+            logger.info(msg)
             center.run_redis_process(host, ports, False, current_time)
         for host, ports in classified_paused_list.items():
-            logger.info('restart {}:{}'.format(host, '|'.join(ports)))
+            msg = message.get('redis_restart')
+            msg = msg.format(host=host, port='|'.join(ports))
+            logger.info(msg)
             center.stop_redis_process(host, ports)
             center.run_redis_process(host, ports, False, current_time)
         if not classified_disconnected_list and not classified_paused_list:
-            logger.info('All redis is alive')
+            msg = message.get('already_all_redis_alive')
+            logger.info(msg)
 
     def tree(self):
         """The results of 'cli cluster nodes' are displayed in tree format.
@@ -464,14 +485,16 @@ class Cluster(object):
             filtered = filter(lambda x: x.startswith(pattern), backup_list)
             sorted_list = sorted(list(filtered))
             if not sorted_list:
-                logger.error("Cannot find any backup")
+                msg = message.get('error_not_found_any_backup')
+                logger.error('BackupNotExistError: ' + msg)
                 return
             tag = sorted_list[-1]
             logger.debug("tag option is empty, auto select: {}".format(tag))
         cluster_restore_dir = tag
         backup_path = os.path.join(cluster_backup_path, cluster_restore_dir)
         if not os.path.isdir(backup_path):
-            logger.error("TagNotExistError: {}".format(tag))
+            msg = message.get('error_not_found_backup').format(tag=tag)
+            logger.error('BackupNotExistError: ' + msg)
             return
 
         # get hosts from cluster props
@@ -486,16 +509,19 @@ class Cluster(object):
         # check status of hosts
         success = Center().check_hosts_connection(hosts, True)
         if not success:
-            logger.error('There are unavailable host.')
+            msg = message.get('error_exist_unavailable_host')
+            logger.error(msg)
             return
         logger.debug('Connection of all hosts ok.')
         success = Center().check_include_localhost(hosts)
         if not success:
-            logger.error('Must include localhost.')
+            msg = message.get('error_not_include_localhost')
+            logger.error(msg)
             return
 
         # check all host tag folder: OK / NOT FOUND
-        logger.info('Check backup info...')
+        msg = message.get('check_backup_info')
+        logger.info(msg)
         buf = []
         for host in hosts:
             client = net.get_ssh(host)
@@ -547,4 +573,6 @@ class Cluster(object):
         cluster_backup_dir = 'cluster_{}_bak_{}'.format(cluster_id, tag)
         for host in hosts:
             Center().cluster_backup(host, cluster_id, cluster_backup_dir)
-        logger.info("Complete to delete cluster {}".format(cluster_id))
+        msg = message.get('cluster_delete_complete')
+        msg = msg.format(cluster_id=cluster_id)
+        logger.info(msg)
