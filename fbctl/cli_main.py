@@ -17,7 +17,6 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers.sql import SqlLexer
 import paramiko
-import yaml
 
 from fbctl import (
     log,
@@ -622,112 +621,6 @@ def run_cluster_use(cluster_id):
     print_mode = user_info['print_mode']
     c = Cluster(print_mode)
     c.use(cluster_id)
-
-
-def run_import_conf():
-    def _to_config_yaml(
-          cluster_id, release, nodes, master_start_port, master_end_port,
-          master_enabled, slave_start_port, slave_end_port, slave_enabled,
-          ssd_count):
-        conf = {}
-        conf['release'] = release
-        conf['nodes'] = nodes
-        conf['ssd'] = {}
-        conf['master_ports'] = {}
-        conf['slave_ports'] = {}
-        conf['master_ports']['from'] = int(master_start_port)
-        conf['master_ports']['to'] = int(master_end_port)
-        conf['master_ports']['enabled'] = bool(master_enabled)
-        conf['slave_ports']['from'] = int(slave_start_port)
-        conf['slave_ports']['to'] = int(slave_end_port)
-        conf['slave_ports']['enabled'] = bool(slave_enabled)
-        conf['ssd']['count'] = int(ssd_count)
-
-        root_of_cli_config = config.get_root_of_cli_config()
-        cluster_base_path = os.path.join(root_of_cli_config, 'clusters')
-        if not os.path.isdir(cluster_base_path):
-            os.mkdir(cluster_base_path)
-        cluster_path = os.path.join(root_of_cli_config, 'clusters', cluster_id)
-        if not os.path.isdir(cluster_path):
-            os.mkdir(cluster_path)
-        yaml_path = os.path.join(cluster_path, 'config.yaml')
-        with open(yaml_path, 'w') as fd:
-            yaml.dump(conf, fd, default_flow_style=False)
-
-    def _import_from_fb_to_cli_conf(rp_exists):
-        for cluster_id in rp_exists:
-            path_of_fb = config.get_path_of_fb(cluster_id)
-            rp = path_of_fb['redis_properties']
-            d = config.get_props_as_dict(rp)
-            nodes = d['sr2_redis_master_hosts']
-            master_start_port = 0
-            master_end_port = 0
-            slave_start_port = 0
-            slave_end_port = 0
-            master_enabled = 'sr2_redis_master_ports' in d
-            slave_enabled = 'sr2_redis_slave_ports' in d
-            if master_enabled:
-                master_start_port = min(d['sr2_redis_master_ports'])
-                master_end_port = max(d['sr2_redis_master_ports'])
-            if slave_enabled:
-                slave_start_port = min(d['sr2_redis_slave_ports'])
-                slave_end_port = max(d['sr2_redis_slave_ports'])
-            ssd_count = d['ssd_count']
-            _to_config_yaml(
-                cluster_id=cluster_id,
-                release='',
-                nodes=nodes,
-                master_start_port=master_start_port,
-                master_end_port=master_end_port,
-                master_enabled=master_enabled,
-                slave_start_port=slave_start_port,
-                slave_end_port=slave_end_port,
-                slave_enabled=slave_enabled,
-                ssd_count=ssd_count)
-            logger.info('Save config.yaml from redis.properties')
-
-    def _get_cluster_ids_from_fb():
-        cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
-        path_of_fb = config.get_path_of_fb(cluster_id)
-        base_directory = path_of_fb['base_directory']
-        dirs = [f for f in os.listdir(base_directory)
-                if not os.path.isfile(os.path.join(base_directory, f))]
-        cluster_ids = [d.split('_')[1] for d in dirs if 'cluster_' in d]
-        return cluster_ids
-
-    cluster_ids = _get_cluster_ids_from_fb()
-    root_of_cli_config = config.get_root_of_cli_config()
-
-    rp_exists = []
-    rp_not_exists = []
-    dest_folder_exists = []
-    meta = [['cluster_id', 'state']]
-    for cluster_id in cluster_ids:
-        path_of_fb = config.get_path_of_fb(cluster_id)
-        rp = path_of_fb['redis_properties']
-        dest_path = os.path.join(root_of_cli_config, 'clusters', cluster_id)
-        dest_path = os.path.join(dest_path, 'config.yaml')
-        cluster_path = path_of_fb['cluster_path']
-        deploy_state = os.path.join(cluster_path, '.deploy.state')
-        if os.path.exists(dest_path):
-            dest_folder_exists.append(cluster_id)
-            meta.append([cluster_id, 'SKIP(dest_exist)'])
-        elif os.path.isfile(rp) and not os.path.isfile(deploy_state):
-            rp_exists.append(cluster_id)
-            meta.append([cluster_id, 'IMPORT'])
-        else:
-            rp_not_exists.append(cluster_id)
-            meta.append([cluster_id, 'SKIP(broken)'])
-
-    logger.info('Diff fb and cli conf folders.')
-    utils.print_table(meta)
-    if rp_exists:
-        return
-    import_yes = ask_util.askBool('Do you want to import conf?', ['y', 'n'])
-    if not import_yes:
-        return
-
-    _import_from_fb_to_cli_conf(rp_exists)
 
 
 def run_exit():
