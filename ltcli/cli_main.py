@@ -630,11 +630,11 @@ def run_clear():
 
 
 class Command(object):
-    """This is lightningdb command line.
+    """This is LightningDB command line.
 We use python-fire(https://github.com/google/python-fire)
 for automatically generating CLIs
 
-    - deploy: install lightningdb package to nodes
+    - deploy: install LightningDB package to nodes
     - c: change cluster #, alias of cluster use
     - cluster: trib.rb cluster wrapper
     - cli: redis-cli command wrapper

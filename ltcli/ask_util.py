@@ -341,7 +341,7 @@ def ssd_count(save, default=None):
 
 def base_directory(default='~/tsr2'):
     logger.debug('ask base directory')
-    result = ask('Type base directory for lightningdb', default=default)
+    result = ask('Type base directory for LightningDB', default=default)
     if not result.startswith(('~', '/')):
         logger.error("Invalid path: '{}', try again".format(result))
         return base_directory()
