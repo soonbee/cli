@@ -13,27 +13,27 @@ class RedisCliInfo(object):
         pass
 
     def all(self, host=None, port=None):
-        """Command: cli info all"""
+        """Command: redis-cli info all"""
         RedisCliUtil.command(sub_cmd='info', host=host, port=port)
 
     def memory(self, host=None, port=None):
-        """Command: cli info memory"""
+        """Command: redis-cli info memory"""
         RedisCliUtil.command(sub_cmd='info memory', host=host, port=port)
 
     def eviction(self, host=None, port=None):
-        """Command: cli info eviction"""
+        """Command: redis-cli info eviction"""
         RedisCliUtil.command(sub_cmd='info eviction', host=host, port=port)
 
     def keyspace(self, host=None, port=None):
-        """Command: cli info keyspace"""
+        """Command: redis-cli info keyspace"""
         RedisCliUtil.command(sub_cmd='info keyspace', host=host, port=port)
 
     def tablespace(self, host=None, port=None):
-        """Command: cli info tablespace"""
+        """Command: redis-cli info tablespace"""
         RedisCliUtil.command(sub_cmd='info tablespace', host=host, port=port)
 
     def replication(self, host=None, port=None):
-        """Command: cli info replication"""
+        """Command: redis-cli info replication"""
         RedisCliUtil.command('info replication', host=host, port=port)
 
 
@@ -42,15 +42,15 @@ class RedisCliCluster(object):
         pass
 
     def info(self):
-        """Command: cli cluster info"""
+        """Command: redis-cli cluster info"""
         RedisCliUtil.command('cluster info')
 
     def nodes(self):
-        """Command: cli cluster nodes"""
+        """Command: redis-cli cluster nodes"""
         RedisCliUtil.command('cluster nodes')
 
     def slots(self):
-        """Command: cli cluster slots"""
+        """Command: redis-cli cluster slots"""
         def formatter(outs):
             lines = outs.splitlines()
             replicas = config.get_replicas()
@@ -91,12 +91,12 @@ class RedisCliConfig(object):
         return combined
 
     def get(self, key, all=False, host=None, port=None):
-        """Command: cli config get [key]
+        """Command: redis-cli config get
 
         :param key: redis config keyword
-        :param all: If True, command to all nodes
-        :param host: host
-        :param port: port
+        :param all: If true, send command to all redis
+        :param host: host info for redis
+        :param port: port info for redis
         """
         if not isinstance(all, bool):
             msg = m.get('error_option_type_not_boolean')
@@ -142,14 +142,14 @@ class RedisCliConfig(object):
                 logger.error(msg)
 
     def set(self, key, value, all=False, save=False, host=None, port=None):
-        """Command: cli config set [key] [value]
+        """Command: redis-cli config set
 
-        :param key: redis config keyword
-        :param value: value
-        :param save: If True, save value to config file
-        :param all: If True, command to all nodes
-        :param host: host
-        :param port: port
+        :param key: target key
+        :param value: value to set
+        :param save: If true, save value to config file
+        :param all: If true, send command to all redis
+        :param host: host info for redis
+        :param port: port info for redis
         """
         if not isinstance(all, bool):
             msg = m.get('error_option_type_not_boolean')

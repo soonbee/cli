@@ -28,7 +28,7 @@ def _change_cluster(cluster_id):
 
 
 class Cluster(object):
-    """This is cluster command
+    """Command Wrapper of trib.rb
     """
 
     def __init__(self, print_mode='screen'):
@@ -36,6 +36,10 @@ class Cluster(object):
 
     def stop(self, force=False, master=True, slave=True):
         """Stop cluster
+
+        :param force: Force the cluster to shut down
+        :param master: If exclude master cluster, set False
+        :param slave: If exclude slave cluster, set False
         """
         if not isinstance(force, bool):
             msg = message.get('error_option_type_not_boolean')
@@ -61,6 +65,9 @@ class Cluster(object):
 
     def start(self, profile=False, master=True, slave=True):
         """Start cluster
+
+        :param master: If exclude master cluster, set False
+        :param slave: If exclude slave cluster, set False
         """
         logger.debug("command 'cluster start'")
         if not isinstance(profile, bool):
@@ -109,7 +116,8 @@ class Cluster(object):
     def create(self, yes=False):
         """Create cluster
 
-        Before create cluster, all redis should be started.
+        Before create cluster, all redis should be running.
+        :param yes: skip confirm information
         """
         center = Center()
         center.update_ip_port()
@@ -174,6 +182,9 @@ class Cluster(object):
 
     def clean(self, logs=False):
         """Clean cluster
+
+        Delete redis config, data, node configuration.
+        :param log: Delete log of redis
         """
         if not isinstance(logs, bool):
             msg = message.get('error_option_type_not_boolean')
@@ -198,7 +209,8 @@ class Cluster(object):
         logger.info(msg)
 
     def ls(self):
-        """Check cluster list"""
+        """Get cluster list
+        """
         logger.info(cluster_util.get_cluster_list())
 
     def restart(
@@ -209,9 +221,12 @@ class Cluster(object):
         profile=False,
         yes=False,
     ):
-        """Restart redist cluster
-        :param force: If true, send SIGKILL. If not, send SIGINT
-        :param reset: If true, clean(rm data).
+        """Restart cluster
+
+        :param force_stop: Force the cluster to shuto down
+        :param reset: Delete redis config, data, node configuration
+        :param cluster: Create cluster after cluster start
+        :param yes: Skip confirm information when cluster create
         """
         if not isinstance(force_stop, bool):
             msg = message.get('error_option_type_not_boolean')
@@ -257,6 +272,10 @@ class Cluster(object):
             self.create(yes=yes)
 
     def configure(self):
+        """Configure cluster
+
+        Make conf file of redis with redis properties information.
+        """
         center = Center()
         center.update_ip_port()
         success = center.check_hosts_connection()
@@ -266,7 +285,8 @@ class Cluster(object):
         center.sync_conf(show_result=True)
 
     def rowcount(self):
-        """Query and show cluster row count"""
+        """Query and show cluster row count
+        """
         logger.debug('rowcount')
         # open-redis-cli-all info Tablespace | grep totalRows | awk -F ',
         # ' '{print $4}' | awk -F '=' '{sum += $2} END {print sum}'
@@ -286,7 +306,7 @@ class Cluster(object):
         self._print(row_count)
 
     def rebalance(self, ip, port):
-        """Rebalance
+        """Rebalance cluster
 
         :param ip: rebalance target ip
         :param port: rebalance target port
@@ -294,7 +314,10 @@ class Cluster(object):
         rebalance_cluster_cmd(ip, port)
 
     def add_slave(self, yes=False):
-        """Add slaves to cluster additionally
+        """Add slave of cluster
+
+        Add slaves to cluster that configured master only.
+        :param yes: Skip confirm information
         """
         logger.debug('add_slave')
         if not isinstance(yes, bool):
@@ -358,9 +381,8 @@ class Cluster(object):
             center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
 
     def failover(self):
-        """Replace disconnected master with slave.
+        """Replace disconnected master with slave
 
-        Replace disconnected master with slave.
         If disconnected master comes back to live, it become slave.
         """
         center = Center()
@@ -394,6 +416,8 @@ class Cluster(object):
             logger.info(msg)
 
     def failback(self):
+        """Restart disconnected redis
+        """
         center = Center()
         center.update_ip_port()
         master_obj_list = center.get_master_obj_list()
@@ -438,7 +462,7 @@ class Cluster(object):
             logger.info(msg)
 
     def tree(self):
-        """The results of 'cli cluster nodes' are displayed in tree format.
+        """The results of 'cli cluster nodes' are displayed in tree format
         """
         center = Center()
         center.update_ip_port()
@@ -470,6 +494,11 @@ class Cluster(object):
             logger.info(text)
 
     def restore(self, cluster_id, tag=None):
+        """Restore cluster
+
+        :param cluster_id: target cluster id
+        :param tag: Tag of backup, if omitted, restore the most recent backup file
+        """
         logger.debug('cluster restore: cluster_id={}, tag={}'.format(
             cluster_id,
             tag
@@ -557,6 +586,8 @@ class Cluster(object):
             logger.info("OK")
 
     def version(self):
+        """Get version of lightningDB
+        """
         cluster_id = config.get_cur_cluster_id()
         tsr2_home = config.get_tsr2_home(cluster_id)
         with open(os.path.join(tsr2_home, "VERSION"), "r") as version_file:
@@ -564,6 +595,11 @@ class Cluster(object):
             logger.info("".join(lines).strip())
 
     def delete(self, cluster_id):
+        """Delete cluster
+
+        It is automatically backed up with timestamps as tags
+        :param cluster_id: target cluster id
+        """
         if not cluster_util.validate_id(cluster_id):
             raise ClusterIdError(cluster_id)
         path_of_fb = config.get_path_of_fb(cluster_id)

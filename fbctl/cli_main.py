@@ -64,9 +64,10 @@ user_info = {
 
 
 def run_monitor(n=10, t=2):
-    """Run monitor command
+    """Monitoring logs of redis.
 
-    Monitor remote logs
+    :param n: number of lines to print log
+    :param t: renewal cycle(sec)
     """
     if not isinstance(n, int):
         msg = message.get('error_option_type_not_number').format(option='n')
@@ -113,6 +114,15 @@ def run_deploy(
         clean=False,
         strategy="none"
 ):
+    """Install flashbase package.
+
+    :param cluster_id: cluster id
+    :param history_save: save input history and use as default
+    :param clean: delete redis log, node configuration
+    :param strategy:
+        none(default): normal deploy,
+        zero-downtime: re-deploy without stop
+    """
     # validate cluster id
     if cluster_id is None:
         cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
@@ -606,6 +616,8 @@ def _deploy(cluster_id, history_save, clean):
 
 
 def run_cluster_use(cluster_id):
+    """Alias of command cluster use.
+    """
     print_mode = user_info['print_mode']
     c = Cluster(print_mode)
     c.use(cluster_id)
@@ -718,14 +730,14 @@ def run_import_conf():
 
 
 def run_exit():
-    """EXit fbctl
+    """Exit fbctl.
     """
     # empty function for docs of fire
     pass
 
 
 def run_clear():
-    """Clear screen
+    """Clear screen.
     """
     # empty function for docs of fire
     pass
@@ -736,17 +748,17 @@ class Command(object):
 We use python-fire(https://github.com/google/python-fire)
 for automatically generating CLIs
 
-    - deploy: install flashbase package to nodes
-    - c: change cluster #, alias of cluster use
-    - cluster: trib.rb cluster wrapper
-    - cli: redis-cli command wrapper
-    - conf: edit conf file
-    - monitor: monitor redis logs
-    - thriftserver: thriftserver command
-    - ths: alias of thriftserver
-    - ll: change log level to debug fbctl
-    - exit: exit fbctl
-    - clear: clear screen
+    - deploy: Install flashbase package
+    - c: Alias of cluster use
+    - cluster: Command Wrapper of trib.rb
+    - cli: Command wrapper of redis-cli
+    - conf: Edit conf file
+    - monitor: Monitoring logs of redis
+    - thriftserver: Thriftserver command
+    - ths: Alias of thriftserver
+    - ll: Change log level
+    - exit: Exit fbctl
+    - clear: Clear screen
  """
 
     def __init__(self):

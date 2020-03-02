@@ -70,6 +70,9 @@ def _find_files_with_regex(dir_path, pattern):
 
 
 class ThriftServer(object):
+    """Thriftserver command
+    """
+
     def beeline(self, **kargs):
         """Connect to thriftserver command line
         """
@@ -130,7 +133,7 @@ class ThriftServer(object):
         os.system(cmd)
 
     def monitor(self):
-        """Show thriftserver log
+        """Monitoring log of thriftserver"
         """
         logger.debug('thriftserver_command_monitor')
         _check_spark()
@@ -155,7 +158,7 @@ class ThriftServer(object):
         os.system(cmd)
 
     def restart(self):
-        """Thriftserver restart
+        """Restart thriftserver
         """
         self.stop()
         time.sleep(2)

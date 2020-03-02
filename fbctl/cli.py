@@ -21,8 +21,8 @@ def ping(host=None, port=None, all=False):
     """Send ping command
 
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
         msg = message.get('error_option_type_not_boolean').format(option='all')
@@ -56,8 +56,8 @@ def reset_oom(all=False, host=None, port=0):
     """Send reset oom command
 
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
         msg = message.get('error_option_type_not_boolean').format(option='all')
@@ -72,8 +72,8 @@ def reset_info(key, all=False, host=None, port=0):
 
     :param key: resetting target key string
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
         msg = message.get('error_option_type_not_boolean').format(option='all')
@@ -86,10 +86,10 @@ def reset_info(key, all=False, host=None, port=0):
 def metakeys(key, all=False, host=None, port=0):
     """Get metakeys
 
-    :param key: resetting target key string
+    :param key: target key
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
         msg = message.get('error_option_type_not_boolean').format(option='all')
@@ -100,10 +100,7 @@ def metakeys(key, all=False, host=None, port=0):
 
 
 class Cli(object):
-    """This is Cli command (redis-cli wrapper)
-
-    You can check redis and cluster info.
-
+    """Command wrapper of redis-cli
     """
 
     def __init__(self):

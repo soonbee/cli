@@ -1,0 +1,196 @@
+{
+    "fbctl": [
+        "This is FlashBase command line",
+        "We use python-fire(https://github.com/google/python-fire) for automatically generating CLIs",
+        "",
+        "    - deploy: Install flashbase package",
+        "    - c: Alias of cluster use",
+        "    - cluster: Command Wrapper of trib.rb",
+        "    - cli: Command wrapper of redis-cli",
+        "    - conf: Edit conf file",
+        "    - monitor: Monitoring logs of redis",
+        "    - thriftserver: Thriftserver command",
+        "    - ths: Alias of thriftserver",
+        "    - ll: Change log level",
+        "    - exit: Exit fbctl",
+        "    - clear: Clear screen"
+    ],
+    "deploy": [
+        "Install flashbase package",
+        "",
+        ":param cluster_id: cluster id",
+        ":param history_save: save input history and use as default",
+        ":param clean: delete redis log, cluster configuration",
+        ":param strategy:",
+        "    none(default): normal deploy,",
+        "    zero-downtime: re-deploy without stop"
+    ],
+    "c": "Alias of command cluster use",
+    "monitor": [
+        "Monitoring logs of redis",
+        "",
+        ":param n: number of lines to print log",
+        ":param t: renewal cycle(sec)"
+    ],
+    "ths": "",
+    "ll": [
+        "Change log level",
+        "",
+        "    :param level: debug / info / warning / error"
+    ],
+    "clear": "Clear screen",
+    "exit": "Exit fbctl",
+    "cluster": "Command Wrapper of trib.rb",
+    "cluster_stop": [
+        "Stop cluster",
+        "",
+        ":param force: Force the cluster to shut down",
+        ":param master: If exclude master cluster, set False",
+        ":param slave: If exclude slave cluster, set False"
+    ],
+    "cluster_start": [
+        "Start cluster",
+        "",
+        ":param master: If exclude master cluster, set False",
+        ":param slave: If exclude slave cluster, set False"
+    ],
+    "cluster_create": [
+        "Create cluster",
+        "",
+        "Before create cluster, all redis should be running",
+        ":param yes: Skip confirm information"
+    ],
+    "cluster_clean": [
+        "Clean cluster",
+        "",
+        "Delete redis config, data, node configuration",
+        ":param log: Delete log of redis"
+    ],
+    "cluster_use": [
+        "Change selected cluster",
+        "",
+        ":param cluster_id: target cluster #"
+    ],
+    "cluster_ls": [
+        "Get cluster list"
+    ],
+    "cluster_restart": [
+        "Restart cluster",
+        "",
+        ":param force_stop: Force the cluster to shut down",
+        ":param reset: Delete redis config, data, node configuration",
+        ":param cluster: Create cluster after cluster start",
+        ":param yes: Skip confirm information when cluster create"
+    ],
+    "cluster_configuration": [
+        "Configure cluster",
+        "",
+        "Make conf file of redis with redis properties information"
+    ],
+    "cluster_rowcount": "Query and show cluster row count",
+    "cluster_rebalance": [
+        "Rebalance cluster",
+        "",
+        ":param ip: rebalance target ip",
+        " :param port: rebalance target port"
+    ],
+    "cluster_add_slave": [
+        "Add slave of cluster",
+        "",
+        "Add slaves to cluster that configured master only",
+        ":param yes: Skip confirm information"
+    ],
+    "cluster_failover": [
+        "Replace disconnected master with slave",
+        "",
+        "If disconnected master comes back to live, it become slave."
+    ],
+    "cluster_failback": "Restart disconnected redis",
+    "cluster_tree": "The results of 'cli cluster nodes' are displayed in tree format",
+    "cluster_restore": [
+        "Restore cluster",
+        "",
+        ":param cluster_id: target cluster id",
+        ":param tag: Tag of backup, if omitted, restore the most recent backup file"
+    ],
+    "cluster_version": "Get version of lightningDB",
+    "cluster_delete": [
+        "Delete cluster",
+        "",
+        "It is automatically backed up with timestamps as tags",
+        ":param cluster_id: target cluster id"
+    ],
+    "conf": [
+        "Edit conf file",
+        "",
+        "Open conf file with editor. Sync to all hosts after edit"
+    ],
+    "conf_cluster": "Edit 'redis.properties' of cluster",
+    "conf_master": "Edit 'redis-master.conf.template'",
+    "conf_slave": "Edit 'redis-slave.conf.template'",
+    "conf_thriftserver": "Edit 'thriftserver.properties'",
+    "thriftserver": "Thriftserver command",
+    "thriftserver_beeline": "Connect to thriftserver command line",
+    "thriftserver_start": "Start thriftserver",
+    "thriftserver_stop": "Stop thriftserver",
+    "thriftserver_monitor": "Monitoring log of thriftserver",
+    "thriftserver_restart": "Restart thriftserver",
+    "cli": "Command wrapper of redis-cli",
+    "cli_ping": [
+        "Send ping command",
+        "",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ],
+    "cli_reset_oom": [
+        "Send reset oom command",
+        "",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ],
+    "cli_reset_info": [
+        "Send reset info",
+        "",
+        ":param key: resetting target key string",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ],
+    "cli_metakeys": [
+        "Get metakeys",
+        "",
+        ":param key: target key",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ],
+    "cli_info_all": "Command: redis-cli info all",
+    "cli_info_memory": "Command: redis-cli info memory",
+    "cli_info_eviction": "Command: redis-cli info eviction",
+    "cli_info_keyspace": "Command: redis-cli info keyspace",
+    "cli_info_tablespace": "Command: redis-cli info tablespace",
+    "cli_info_replication": "Command: redis-cli info replication",
+    "cli_cluster_info": "Command: redis-cli cluster info",
+    "cli_cluster_nodes": "Command: redis-cli cluster nodes",
+    "cli_cluster_slots": "Command: redis-cli cluster slots",
+    "cli_config_get": [
+        "Command: redis-cli config get",
+        "",
+        ":param key: target key",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ],
+    "cli_config_set": [
+        "Command: redis-cli config set",
+        "",
+        ":param key: target key",
+        ":param value: value to set",
+        ":param save: If true, save to template file",
+        ":param all: If true, send command to all redis",
+        ":param host: host info for redis",
+        ":param port: port info for redis"
+    ]
+}

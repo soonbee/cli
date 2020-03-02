@@ -8,16 +8,15 @@ from fbctl.center import Center
 
 
 class Conf(object):
-    """command for edit conf file.
+    """Edit conf file
 
-    open conf file with editor.
-    sync to all hosts after edit.
+    Open conf file with editor. Sync to all hosts after edit.
     """
     def __init__(self):
         pass
 
     def cluster(self):
-        """edit 'redis.properties' of cluster
+        """Edit 'redis.properties' of cluster
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -34,7 +33,7 @@ class Conf(object):
             logger.info(msg)
 
     def master(self):
-        """ edit 'redis-master.conf.template'
+        """Edit 'redis-master.conf.template'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -51,7 +50,7 @@ class Conf(object):
             logger.info(msg)
 
     def slave(self):
-        """edit 'redis-slave.conf.template'
+        """Edit 'redis-slave.conf.template'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -68,7 +67,7 @@ class Conf(object):
             logger.info(msg)
 
     def thriftserver(self):
-        """edit 'thriftserver.properties'
+        """Edit 'thriftserver.properties'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -85,7 +84,7 @@ class Conf(object):
             logger.info(msg)
 
     def ths(self):
-        """alias of thriftserver
+        """Edit 'thriftserver.properties'
         """
         self.thriftserver()
 
