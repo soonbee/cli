@@ -1,4 +1,4 @@
-from fbctl import utils, color
+from fbctl import utils, color, message
 from fbctl.log import logger
 from fbctl.rediscli import (
     RedisCliCluster,
@@ -21,14 +21,16 @@ def ping(host=None, port=None, all=False):
     """Send ping command
 
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
-        logger.error("option '--all' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean').format(option='all')
+        logger.error(msg)
         return
     if (not host or not port) and not all:
-        logger.error("Enter host and port or use '--all' option.")
+        msg = message.get('use_host_port_or_option_all')
+        logger.error(msg)
         return
     if all:
         meta = []
@@ -42,7 +44,9 @@ def ping(host=None, port=None, all=False):
                 meta.append([m_s, addr, color.red('FAIL')])
         if meta:
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-        logger.info('alive redis {}/{}'.format(pong_cnt, len(ret)))
+        msg = message.get('counting_alive_reids')
+        msg = msg.format(alive=pong_cnt, total=len(ret))
+        logger.info(msg)
         return
     if host and port:
         _command('ping', False, host, port)
@@ -52,11 +56,12 @@ def reset_oom(all=False, host=None, port=0):
     """Send reset oom command
 
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
-        logger.error("option '--all' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean').format(option='all')
+        logger.error(msg)
         return
     sub_cmd = 'resetOom'
     _command(sub_cmd, all, host, port)
@@ -67,11 +72,12 @@ def reset_info(key, all=False, host=None, port=0):
 
     :param key: resetting target key string
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
-        logger.error("option '--all' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean').format(option='all')
+        logger.error(msg)
         return
     sub_cmd = 'resetInfo %s' % key
     _command(sub_cmd, all, host, port)
@@ -80,23 +86,21 @@ def reset_info(key, all=False, host=None, port=0):
 def metakeys(key, all=False, host=None, port=0):
     """Get metakeys
 
-    :param key: resetting target key string
+    :param key: target key
     :param all: If true, send command to all
-    :param host: host info
-    :param port: port info
+    :param host: host info for redis
+    :param port: port info for redis
     """
     if not isinstance(all, bool):
-        logger.error("option '--all' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean').format(option='all')
+        logger.error(msg)
         return
     sub_cmd = 'metakeys "%s"' % key
     _command(sub_cmd, all, host, port)
 
 
 class Cli(object):
-    """This is Cli command (redis-cli wrapper)
-
-    You can check redis and cluster info.
-
+    """Command wrapper of redis-cli
     """
 
     def __init__(self):

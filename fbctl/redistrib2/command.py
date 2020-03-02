@@ -7,6 +7,7 @@ import sys
 from retrying import retry
 from six.moves import range
 
+from fbctl import message
 from fbctl.log import logger
 from .clusternode import ClusterNode, base_balance_plan
 from .connection import (
@@ -99,7 +100,8 @@ def create(host_port_list, max_slots=1024):
             _ensure_cluster_status_unset(t)
             logging.info('Instance at %s:%d checked', t.host, t.port)
 
-        logger.info('Cluster meet...')
+        msg = message.get('cluster_meet')
+        logger.info(msg)
         logger.info(' - {}:{}'.format(conns[0].host, conns[0].port))
         first_conn = conns[0]
         for i, t in enumerate(conns[1:]):
@@ -110,7 +112,8 @@ def create(host_port_list, max_slots=1024):
         slots_residue = SLOT_COUNT - slots_each * len(conns)
         first_node_slots = slots_residue + slots_each
 
-        logger.info('Adding slots...')
+        msg = message.get('adding_slot')
+        logger.info(msg)
         logger.info(' - {}:{}, {}'.format(
             first_conn.host,
             first_conn.port,
@@ -126,7 +129,8 @@ def create(host_port_list, max_slots=1024):
                              (i + 1) * slots_each + first_node_slots,
                              max_slots)
             logging.info('Add %d slots to %s:%d', slots_each, t.host, t.port)
-        logger.info('Check cluster state and asign slot...')
+        msg = message.get('check_cluster_state_asign_slot')
+        logger.info(msg)
         for t in conns:
             _poll_check_status(t)
         logger.info('Ok')

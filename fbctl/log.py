@@ -4,7 +4,7 @@ import sys
 from logbook import Logger, Processor, StreamHandler, RotatingFileHandler
 from logbook import DEBUG, INFO, WARNING, ERROR
 
-from fbctl import color
+from fbctl import color, message
 
 
 def get_log_color(level):
@@ -105,10 +105,15 @@ else:
         os.mkdir(file_path)
     except Exception:
         logger.error("CreateDirError: {}".format(file_path))
-        logger.warn('Could not logging in file. Confirm and restart.')
+        msg = message.get('error_logging_in_file')
+        logger.warning(msg)
 
 
 def set_level(level):
+    """Change log level.
+
+    :param level: debug / info / warning / error
+    """
     level_list = ['debug', 'info', 'warning', 'error', 'warn']
     if level not in level_list:
         level_list.remove('warn')
@@ -119,7 +124,7 @@ def set_level(level):
         return
     code = get_log_code(level)
     stream_handler.level = code
-    print(color.white('Changed log level to {}'.format(level)))
+    print(color.white(message.get('change_log_level').format(level=level)))
 
 
 def set_mode(mode):

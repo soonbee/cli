@@ -17,7 +17,6 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers.sql import SqlLexer
 import paramiko
-import yaml
 
 from fbctl import (
     log,
@@ -28,7 +27,8 @@ from fbctl import (
     color,
     ask_util,
     cluster_util,
-    editor
+    editor,
+    message
 )
 from fbctl.log import logger
 from fbctl.cli import Cli
@@ -63,20 +63,24 @@ user_info = {
 
 
 def run_monitor(n=10, t=2):
-    """Run monitor command
+    """Monitoring logs of redis.
 
-    Monitor remote logs
+    :param n: number of lines to print log
+    :param t: renewal cycle(sec)
     """
     if not isinstance(n, int):
-        logger.error("option '--n' can use only number")
+        msg = message.get('error_option_type_not_number').format(option='n')
+        logger.error(msg)
         return
     if not isinstance(t, int) and not isinstance(t, float):
-        logger.error("option '--t' can use only number(include float)")
+        msg = message.get('error_option_type_not_float').format(option='t')
+        logger.error(msg)
         return
     try:
         sp.check_output('which tail', shell=True)
     except Exception:
-        logger.error('Need to linux command tail')
+        msg = message.get('error_not_found_command_tail')
+        logger.error(msg)
         return
     cluster_id = config.get_cur_cluster_id()
     path_of_fb = config.get_path_of_fb(cluster_id)
@@ -94,8 +98,9 @@ def run_monitor(n=10, t=2):
         )
         sp.call(command, shell=True)
     except Exception:
-        logger.warning("Cannot found command 'watch'. Option '--n' ignored")
-        logger.info('Press Ctrl-C for exit.')
+        msg = message.get('error_not_found_command_watch')
+        logger.warning(msg)
+        logger.info(message.get('message_for_exit'))
         command = "tail -F -s {} {}".format(t, log_files)
         client = net.get_ssh(target_host)
         net.ssh_execute_async(client, command)
@@ -108,11 +113,20 @@ def run_deploy(
         clean=False,
         strategy="none"
 ):
+    """Install flashbase package.
+
+    :param cluster_id: cluster id
+    :param history_save: save input history and use as default
+    :param clean: delete redis log, node configuration
+    :param strategy:
+        none(default): normal deploy,
+        zero-downtime: re-deploy without stop
+    """
     # validate cluster id
     if cluster_id is None:
         cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
         if cluster_id < 0:
-            msg = 'Select cluster first or type cluster id with argument'
+            msg = message.get('error_invalid_cluster_on_deploy')
             logger.error(msg)
             return
     if not cluster_util.validate_id(cluster_id):
@@ -120,25 +134,27 @@ def run_deploy(
 
     # validate option
     if not isinstance(history_save, bool):
-        logger.error("option '--history-save' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean')
+        msg = msg.format(option='history-save')
+        logger.error(msg)
         return
     logger.debug("option '--history-save': {}".format(history_save))
     if not isinstance(clean, bool):
-        logger.error("option '--clean' can use only 'True' or 'False'")
+        msg = message.get('error_option_type_not_boolean')
+        msg = msg.format(option='clean')
+        logger.error(msg)
         return
     logger.debug("option '--clean': {}".format(clean))
-    # if not isinstance(force, bool):
-    #     logger.error("option '--force' can use only 'True' or 'False'")
-    #     return
-    # logger.debug("option '--force': {}".format(force))
     strategy_list = ["none", "zero-downtime"]
     if strategy not in strategy_list:
-        logger.error("DeployStrategyError: '{}'. Select in {}".format(
-            strategy,
-            strategy_list
-        ))
+        msg = message.get('error_deploy_strategy').format(
+            value=strategy,
+            list=strategy_list
+        )
+        logger.error(msg)
         return
     if strategy == "zero-downtime":
+        run_cluster_use(cluster_id)
         _deploy_zero_downtime(cluster_id)
         return
     _deploy(cluster_id, history_save, clean)
@@ -159,11 +175,11 @@ def _deploy_zero_downtime(cluster_id):
     m_count = len(m_hosts) * len(m_ports)
     alive_m_count = center.get_alive_master_redis_count()
     if alive_m_count < m_count:
-        logger.error("There is disconnected master")
+        logger.error(message.get('error_exist_disconnected_master'))
         return
 
     if not config.is_slave_enabled:
-        logger.error("Need to slave")
+        logger.error(message.get('error_need_to_slave'))
         return
 
     # select installer
@@ -186,7 +202,7 @@ def _deploy_zero_downtime(cluster_id):
         client.close()
 
     # transfer & install
-    logger.info('Transfer installer and execute...')
+    logger.info(message.get('transfer_and_execute_installer'))
     for host in m_hosts:
         logger.info(' - {}'.format(host))
         client = net.get_ssh(host)
@@ -197,7 +213,8 @@ def _deploy_zero_downtime(cluster_id):
         try:
             DeployUtil().install(host, cluster_id, installer_name)
         except SSHCommandError as ex:
-            msg = "Fail to execute installer '{}'".format(installer_path)
+            msg = message.get('error_execute_installer')
+            msg = msg.format(installer=installer_path)
             logger.error(msg)
             logger.exception(ex)
             return
@@ -231,7 +248,7 @@ def _deploy_zero_downtime(cluster_id):
     RedisCliConfig().set(key, '2000', all=True)
 
     # cluster failover (with no option)
-    logger.info("Replace master to slave")
+    logger.info(message.get('redis_failover'))
     logger.debug(slaves_for_failover)
     try_count = 0
     while try_count < 10:
@@ -239,13 +256,13 @@ def _deploy_zero_downtime(cluster_id):
         success = True
         for slave_addr in slaves_for_failover:
             host, port = slave_addr.split(':')
-            # In some cases, the cluster failover is not complete
-            # even if stdout is OK
-            # If redis changed to master completely,
-            # return 'ERR You should send CLUSTER FAILOVER to a slave'
             stdout = center.run_failover("{}:{}".format(host, port))
             logger.debug("failover {}:{} {}".format(host, port, stdout))
             if stdout != "ERR You should send CLUSTER FAILOVER to a slave":
+                # In some cases, the cluster failover is not complete
+                # even if stdout is OK
+                # If redis changed to master completely,
+                # return 'ERR You should send CLUSTER FAILOVER to a slave'
                 success = False
         if success:
             break
@@ -255,6 +272,7 @@ def _deploy_zero_downtime(cluster_id):
     center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
     center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
     if not success:
+        logger.error(message.get('error_redis_failover'))
         logger.error("Fail to cluster failover")
         return
 
@@ -275,12 +293,12 @@ def _deploy_zero_downtime(cluster_id):
     logger.debug("master port {}".format(m_ports))
     logger.debug("slave port {}".format(s_ports))
     key = 'sr2_redis_master_ports'
-    logger.debug("after master port {}".format(after_m_ports))
+    logger.debug("next master port {}".format(after_m_ports))
     value = cluster_util.convert_list_2_seq(after_m_ports)
     logger.debug("converted {}".format(value))
     config.set_props(props_path, key, value)
     key = 'sr2_redis_slave_ports'
-    logger.debug("after slave port {}".format(after_s_ports))
+    logger.debug("next slave port {}".format(after_s_ports))
     value = cluster_util.convert_list_2_seq(after_s_ports)
     logger.debug("converted {}".format(value))
     config.set_props(props_path, key, value)
@@ -289,16 +307,12 @@ def _deploy_zero_downtime(cluster_id):
 def _deploy(cluster_id, history_save, clean):
     deploy_state = DeployUtil().get_state(cluster_id)
     if deploy_state == DEPLOYED:
-        q = [
-            color.YELLOW,
-            '(Watch out) ',
-            'Cluster {} is already deployed. '.format(cluster_id),
-            'Do you want to deploy again?',
-            color.ENDC,
-        ]
-        yes = ask_util.askBool(''.join(q), default='n')
+        msg = message.get('ask_deploy_again')
+        msg = msg.format(cluster_id=cluster_id)
+        msg = color.yellow(msg)
+        yes = ask_util.askBool(msg, default='n')
         if not yes:
-            logger.info('Cancel deploy.')
+            logger.info(message.get('cancel'))
             return
 
     restore_yes = None
@@ -323,7 +337,7 @@ def _deploy(cluster_id, history_save, clean):
 
     # ask restore conf
     if deploy_state == DEPLOYED:
-        restore_yes = ask_util.askBool('Do you want to restore conf?')
+        restore_yes = ask_util.askBool(message.get('ask_restore_conf'))
         meta.append(['restore', restore_yes])
 
     # input props
@@ -336,8 +350,8 @@ def _deploy(cluster_id, history_save, clean):
             if not os.path.isdir(conf_backup_path):
                 os.mkdir(conf_backup_path)
             if os.path.exists(tmp_backup_path):
-                q = 'There is a history of modification. Do you want to load?'
-                yes = ask_util.askBool(q)
+                msg = message.get('ask_load_history_of_previous_modification')
+                yes = ask_util.askBool(msg)
                 if not yes:
                     shutil.rmtree(tmp_backup_path)
             if not os.path.exists(tmp_backup_path):
@@ -357,24 +371,23 @@ def _deploy(cluster_id, history_save, clean):
         meta += DeployUtil().get_meta_from_dict(props_dict)
     utils.print_table(meta)
 
-    msg = [
-        'Do you want to proceed with the deploy ',
-        'accroding to the above information?',
-    ]
-    yes = ask_util.askBool(''.join(msg))
+    msg = message.get('confirm_deploy_information')
+    yes = ask_util.askBool(msg)
     if not yes:
-        logger.info("Cancel deploy.")
+        logger.info(message.get('cancel'))
         return
 
     # check node status
     success = Center().check_hosts_connection(hosts, True)
     if not success:
-        logger.error('There are unavailable host.')
+        msg = message.get('error_exist_unavailable_host')
+        logger.error(msg)
         return
     logger.debug('Connection of all hosts ok.')
     success = Center().check_include_localhost(hosts)
     if not success:
-        logger.error('Must include localhost.')
+        msg = message.get('error_not_include_localhost')
+        logger.error(msg)
         return
 
     # get port info
@@ -397,7 +410,8 @@ def _deploy(cluster_id, history_save, clean):
         replicas = props_dict['replicas']
 
     while True:
-        logger.info("Check port...")
+        msg = message.get('check_port')
+        logger.info(msg)
         host_ports_list = []
         for host in hosts:
             host_ports_list.append((host, m_ports + s_ports))
@@ -406,8 +420,9 @@ def _deploy(cluster_id, history_save, clean):
             logger.info("OK")
             break
         utils.print_table([["HOST", "PORT"]] + conflict)
-        logger.warning('(Watch out) The above ports are already in use.')
-        yes = ask_util.askBool(color.yellow('Do you want to proceed?'))
+        msg = message.get('ask_port_collision')
+        msg = color.yellow(msg)
+        yes = ask_util.askBool(msg)
         if yes:
             logger.info("OK")
             break
@@ -443,7 +458,8 @@ def _deploy(cluster_id, history_save, clean):
             client.close()
 
     # added_hosts = post_hosts - pre_hosts
-    logger.info('Checking for cluster exist...')
+    msg = message.get('check_cluster_exist')
+    logger.info(msg)
     added_hosts = set(hosts)
     meta = []
     if deploy_state == DEPLOYED:
@@ -460,7 +476,8 @@ def _deploy(cluster_id, history_save, clean):
     if meta:
         utils.print_table([['HOST', 'STATUS']] + meta)
     if not can_deploy:
-        logger.error('Cluster information exist on some hosts.')
+        msg = message.get('error_cluster_collision')
+        logger.error(msg)
         return
         # if not force:
         #     logger.error("If you trying to force, use option '--force'")
@@ -495,7 +512,8 @@ def _deploy(cluster_id, history_save, clean):
         client.close()
 
     # transfer & install
-    logger.info('Transfer installer and execute...')
+    msg = message.get('transfer_and_execute_installer')
+    logger.info(msg)
     for host in hosts:
         logger.info(' - {}'.format(host))
         client = net.get_ssh(host)
@@ -506,7 +524,8 @@ def _deploy(cluster_id, history_save, clean):
         try:
             DeployUtil().install(host, cluster_id, installer_name)
         except SSHCommandError as ex:
-            msg = "Fail to execute installer '{}'".format(installer_path)
+            msg = message.get('error_execute_installer')
+            msg = msg.format(installer=installer_path)
             logger.error(msg)
             logger.exception(ex)
             return
@@ -565,13 +584,15 @@ def _deploy(cluster_id, history_save, clean):
         config.set_props(props_path, key, props_dict['prefix_of_db_path'])
 
     # synk props
-    logger.info('Sync conf...')
+    msg = message.get('sync_conf')
+    logger.info(msg)
     for node in hosts:
         if socket.gethostbyname(node) in config.get_local_ip_list():
             continue
         client = net.get_ssh(node)
         if not client:
-            logger.error("ssh connection fail: '{}'".format(node))
+            msg = message.get('error_ssh_connection').format(host=node)
+            logger.error(msg)
             return
         net.copy_dir_to_remote(client, conf_path, conf_path)
         client.close()
@@ -587,132 +608,30 @@ def _deploy(cluster_id, history_save, clean):
         net.ssh_execute(client=client, command=cmd)
         client.close()
 
-    logger.info('Complete to deploy cluster {}.'.format(cluster_id))
+    msg = message.get('complete_deploy').format(cluster_id=cluster_id)
+    logger.info(msg)
     Cluster().use(cluster_id)
-    logger.info('We suggest that you begin by typing: cluster create')
+    msg = message.get('suggest_after_deploy')
+    logger.info(msg)
 
 
 def run_cluster_use(cluster_id):
+    """Alias of command cluster use.
+    """
     print_mode = user_info['print_mode']
     c = Cluster(print_mode)
     c.use(cluster_id)
 
 
-def run_import_conf():
-    def _to_config_yaml(
-          cluster_id, release, nodes, master_start_port, master_end_port,
-          master_enabled, slave_start_port, slave_end_port, slave_enabled,
-          ssd_count):
-        conf = {}
-        conf['release'] = release
-        conf['nodes'] = nodes
-        conf['ssd'] = {}
-        conf['master_ports'] = {}
-        conf['slave_ports'] = {}
-        conf['master_ports']['from'] = int(master_start_port)
-        conf['master_ports']['to'] = int(master_end_port)
-        conf['master_ports']['enabled'] = bool(master_enabled)
-        conf['slave_ports']['from'] = int(slave_start_port)
-        conf['slave_ports']['to'] = int(slave_end_port)
-        conf['slave_ports']['enabled'] = bool(slave_enabled)
-        conf['ssd']['count'] = int(ssd_count)
-
-        root_of_cli_config = config.get_root_of_cli_config()
-        cluster_base_path = os.path.join(root_of_cli_config, 'clusters')
-        if not os.path.isdir(cluster_base_path):
-            os.mkdir(cluster_base_path)
-        cluster_path = os.path.join(root_of_cli_config, 'clusters', cluster_id)
-        if not os.path.isdir(cluster_path):
-            os.mkdir(cluster_path)
-        yaml_path = os.path.join(cluster_path, 'config.yaml')
-        with open(yaml_path, 'w') as fd:
-            yaml.dump(conf, fd, default_flow_style=False)
-
-    def _import_from_fb_to_cli_conf(rp_exists):
-        for cluster_id in rp_exists:
-            path_of_fb = config.get_path_of_fb(cluster_id)
-            rp = path_of_fb['redis_properties']
-            d = config.get_props_as_dict(rp)
-            nodes = d['sr2_redis_master_hosts']
-            master_start_port = 0
-            master_end_port = 0
-            slave_start_port = 0
-            slave_end_port = 0
-            master_enabled = 'sr2_redis_master_ports' in d
-            slave_enabled = 'sr2_redis_slave_ports' in d
-            if master_enabled:
-                master_start_port = min(d['sr2_redis_master_ports'])
-                master_end_port = max(d['sr2_redis_master_ports'])
-            if slave_enabled:
-                slave_start_port = min(d['sr2_redis_slave_ports'])
-                slave_end_port = max(d['sr2_redis_slave_ports'])
-            ssd_count = d['ssd_count']
-            _to_config_yaml(
-                cluster_id=cluster_id,
-                release='',
-                nodes=nodes,
-                master_start_port=master_start_port,
-                master_end_port=master_end_port,
-                master_enabled=master_enabled,
-                slave_start_port=slave_start_port,
-                slave_end_port=slave_end_port,
-                slave_enabled=slave_enabled,
-                ssd_count=ssd_count)
-            logger.info('Save config.yaml from redis.properties')
-
-    def _get_cluster_ids_from_fb():
-        cluster_id = config.get_cur_cluster_id(allow_empty_id=True)
-        path_of_fb = config.get_path_of_fb(cluster_id)
-        base_directory = path_of_fb['base_directory']
-        dirs = [f for f in os.listdir(base_directory)
-                if not os.path.isfile(os.path.join(base_directory, f))]
-        cluster_ids = [d.split('_')[1] for d in dirs if 'cluster_' in d]
-        return cluster_ids
-
-    cluster_ids = _get_cluster_ids_from_fb()
-    root_of_cli_config = config.get_root_of_cli_config()
-
-    rp_exists = []
-    rp_not_exists = []
-    dest_folder_exists = []
-    meta = [['cluster_id', 'state']]
-    for cluster_id in cluster_ids:
-        path_of_fb = config.get_path_of_fb(cluster_id)
-        rp = path_of_fb['redis_properties']
-        dest_path = os.path.join(root_of_cli_config, 'clusters', cluster_id)
-        dest_path = os.path.join(dest_path, 'config.yaml')
-        cluster_path = path_of_fb['cluster_path']
-        deploy_state = os.path.join(cluster_path, '.deploy.state')
-        if os.path.exists(dest_path):
-            dest_folder_exists.append(cluster_id)
-            meta.append([cluster_id, 'SKIP(dest_exist)'])
-        elif os.path.isfile(rp) and not os.path.isfile(deploy_state):
-            rp_exists.append(cluster_id)
-            meta.append([cluster_id, 'IMPORT'])
-        else:
-            rp_not_exists.append(cluster_id)
-            meta.append([cluster_id, 'SKIP(broken)'])
-
-    logger.info('Diff fb and cli conf folders.')
-    utils.print_table(meta)
-    if rp_exists:
-        return
-    import_yes = ask_util.askBool('Do you want to import conf?', ['y', 'n'])
-    if not import_yes:
-        return
-
-    _import_from_fb_to_cli_conf(rp_exists)
-
-
 def run_exit():
-    """EXit fbctl
+    """Exit fbctl.
     """
     # empty function for docs of fire
     pass
 
 
 def run_clear():
-    """Clear screen
+    """Clear screen.
     """
     # empty function for docs of fire
     pass
@@ -723,17 +642,17 @@ class Command(object):
 We use python-fire(https://github.com/google/python-fire)
 for automatically generating CLIs
 
-    - deploy: install flashbase package to nodes
-    - c: change cluster #, alias of cluster use
-    - cluster: trib.rb cluster wrapper
-    - cli: redis-cli command wrapper
-    - conf: edit conf file
-    - monitor: monitor redis logs
-    - thriftserver: thriftserver command
-    - ths: alias of thriftserver
-    - ll: change log level to debug fbctl
-    - exit: exit fbctl
-    - clear: clear screen
+    - deploy: Install flashbase package
+    - c: Alias of cluster use
+    - cluster: Command Wrapper of trib.rb
+    - cli: Command wrapper of redis-cli
+    - conf: Edit conf file
+    - monitor: Monitoring logs of redis
+    - thriftserver: Thriftserver command
+    - ths: Alias of thriftserver
+    - ll: Change log level
+    - exit: Exit fbctl
+    - clear: Clear screen
  """
 
     def __init__(self):
@@ -768,7 +687,8 @@ def _handle(text):
             component=Command,
             command=text)
     except KeyboardInterrupt:
-        logger.warning('\b\bCanceled')
+        msg = message.get('cancel_command_input')
+        logger.warning('\b\b' + msg)
     except KeyError as ex:
         logger.warn('[%s] command fail' % text)
         logger.exception(ex)
@@ -776,11 +696,13 @@ def _handle(text):
         logger.exception(ex)
     except IOError as ex:
         if ex.errno == 2:
-            logger.error("{}: '{}'".format('FileNotExistError', ex.filename))
+            msg = message.get('error_file_not_exist').format(file=ex.filename)
+            logger.error(msg)
         else:
             logger.exception(ex)
     except EOFError:
-        logger.warning('\b\bCanceled')
+        msg = message.get('cancel_command_input')
+        logger.warning('\b\b' + msg)
     except utils.CommandError as ex:
         logger.exception(ex)
     except FireExit as ex:
@@ -812,7 +734,8 @@ def _initial_check():
         # Simple check to see if ssh access to localhost is possible
         net.get_ssh('localhost')
     except paramiko.ssh_exception.SSHException:
-        logger.error('Need to ssh-keygen for localhost')
+        msg = message.get('error_ssh_connection').format(host='localhost')
+        logger.error(msg)
         exit(1)
     cli_config = config.get_cli_config()
     try:
@@ -886,8 +809,10 @@ def main(cluster_id, debug, version):
                 break
             if 'fbctl' in text:
                 old = text
-                text = text.replace('fbctl', '')
-                logger.info('> You can use "%s" instead of "%s"' % (text, old))
+                text = text.replace('fbctl', '').strip()
+                msg = message.get('notify_command_replacement_is_possible')
+                msg = msg.format(new=text, old=old)
+                logger.info(msg)
             _handle(text)
         except ClusterNotExistError:
             run_cluster_use(-1)

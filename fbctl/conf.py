@@ -2,22 +2,21 @@ import os
 import shutil
 
 
-from fbctl import config, editor, ask_util
+from fbctl import config, editor, ask_util, message
 from fbctl.log import logger
 from fbctl.center import Center
 
 
 class Conf(object):
-    """command for edit conf file.
+    """Edit conf file
 
-    open conf file with editor.
-    sync to all hosts after edit.
+    Open conf file with editor. Sync to all hosts after edit.
     """
     def __init__(self):
         pass
 
     def cluster(self):
-        """edit 'redis.properties' of cluster
+        """Edit 'redis.properties' of cluster
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -30,10 +29,11 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def master(self):
-        """ edit 'redis-master.conf.template'
+        """Edit 'redis-master.conf.template'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -46,10 +46,11 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def slave(self):
-        """edit 'redis-slave.conf.template'
+        """Edit 'redis-slave.conf.template'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -62,10 +63,11 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def thriftserver(self):
-        """edit 'thriftserver.properties'
+        """Edit 'thriftserver.properties'
         """
         cluster_id = config.get_cur_cluster_id()
         path_of_fb = config.get_path_of_fb(cluster_id)
@@ -78,18 +80,19 @@ class Conf(object):
             return
         success = center.sync_file(target_path)
         if success:
-            logger.info('Complete edit')
+            msg = message.get('complete_conf_edit')
+            logger.info(msg)
 
     def ths(self):
-        """alias of thriftserver
+        """Edit 'thriftserver.properties'
         """
         self.thriftserver()
 
     def _edit_conf(self, target_path, syntax=None):
         tmp_target_path = target_path + '.tmp'
         if os.path.exists(tmp_target_path):
-            q = 'There is a history of modification. Do you want to load?'
-            yes = ask_util.askBool(q)
+            msg = message.get('ask_load_history_of_previous_modification')
+            yes = ask_util.askBool(msg)
             if not yes:
                 os.remove(tmp_target_path)
         if not os.path.exists(tmp_target_path):
