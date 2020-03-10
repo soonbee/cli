@@ -9,7 +9,7 @@ import subprocess as sp
 
 import click
 import fire
-from fire.core import FireExit
+from fire.core import FireExit, FireError
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import WordCompleter
@@ -682,10 +682,12 @@ def _handle(text):
     text = text.replace('-- --help', '?')
     text = text.replace('--help', '?')
     text = text.replace('?', '-- --help')
+    err_flg = True
     try:
         fire.Fire(
             component=Command,
             command=text)
+        err_flg = False
     except KeyboardInterrupt:
         msg = message.get('cancel_command_input')
         logger.warning('\b\b' + msg)
@@ -705,7 +707,9 @@ def _handle(text):
         logger.warning('\b\b' + msg)
     except utils.CommandError as ex:
         logger.exception(ex)
-    except FireExit as ex:
+    except FireError:
+        pass
+    except FireExit:
         pass
     except (
             HostNameError,
@@ -727,6 +731,8 @@ def _handle(text):
         logger.error('[ErrorCode {}] {}'.format(ex.error_code, str(ex)))
     except BaseException as ex:
         logger.exception(ex)
+    finally:
+        return err_flg
 
 
 def _initial_check():
@@ -797,23 +803,32 @@ def main(cluster_id, debug, version):
 
     history = os.path.join(config.get_root_of_cli_config(), 'cli_history')
     session = PromptSession(
-        lexer=PygmentsLexer(SqlLexer),
+        # lexer=PygmentsLexer(SqlLexer),
         history=FileHistory(history),
         auto_suggest=AutoSuggestFromHistory(),
         style=utils.style)
     while True:
         try:
+            exit_flg = False
             p = prompt.get_cli_prompt()
             text = session.prompt(p, style=utils.style)
-            if text == "exit":
+            command_list = text.split(';')
+            for cmd in command_list:
+                cmd = cmd.strip()
+                if cmd == "exit":
+                    exit_flg = True
+                    break
+                if 'ltcli' in cmd:
+                    old = cmd
+                    cmd = cmd.replace('ltcli', '').strip()
+                    msg = message.get('notify_command_replacement_is_possible')
+                    msg = msg.format(new=cmd, old=old)
+                    logger.info(msg)
+                err_flg = _handle(cmd)
+                if err_flg:
+                    break
+            if exit_flg:
                 break
-            if 'ltcli' in text:
-                old = text
-                text = text.replace('ltcli', '').strip()
-                msg = message.get('notify_command_replacement_is_possible')
-                msg = msg.format(new=text, old=old)
-                logger.info(msg)
-            _handle(text)
         except ClusterNotExistError:
             run_cluster_use(-1)
             continue
