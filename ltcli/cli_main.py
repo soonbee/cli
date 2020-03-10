@@ -244,11 +244,11 @@ def _deploy_zero_downtime(cluster_id):
     key = 'cluster-node-timeout'
     origin_m_value = center.cli_config_get(key, m_hosts[0], m_ports[0])
     origin_s_value = center.cli_config_get(key, s_hosts[0], s_ports[0])
-    logger.info('config set: cluster-node-timeout 2000')
+    logger.debug('config set: cluster-node-timeout 2000')
     RedisCliConfig().set(key, '2000', all=True)
 
     # cluster failover (with no option)
-    logger.info(message.get('redis_failover'))
+    logger.info(message.get('failover_on_deploy'))
     logger.debug(slaves_for_failover)
     try_count = 0
     while try_count < 10:
@@ -266,14 +266,14 @@ def _deploy_zero_downtime(cluster_id):
                 success = False
         if success:
             break
-        logger.info("retry: {}".format(try_count))
+        msg = message.get('retry').format(try_count=try_count)
+        logger.info(msg)
         time.sleep(5)
-    logger.info('restore config: cluster-node-timeout')
+    logger.debug('restore config: cluster-node-timeout')
     center.cli_config_set_all(key, origin_m_value, m_hosts, m_ports)
     center.cli_config_set_all(key, origin_s_value, s_hosts, s_ports)
     if not success:
         logger.error(message.get('error_redis_failover'))
-        logger.error("Fail to cluster failover")
         return
 
     # restart master (current slave)

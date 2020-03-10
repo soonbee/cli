@@ -44,7 +44,7 @@ def ping(host=None, port=None, all=False):
                 meta.append([m_s, addr, color.red('FAIL')])
         if meta:
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-        msg = message.get('counting_alive_reids')
+        msg = message.get('counting_alive_redis')
         msg = msg.format(alive=pong_cnt, total=len(ret))
         logger.info(msg)
         return

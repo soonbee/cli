@@ -58,6 +58,7 @@ class Center(object):
         self.all_host_list = []
 
     def sync_conf(self, show_result=False):
+        msg = message.get('sync_conf')
         logger.info('sync conf')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         conf_path = path_of_fb['conf_path']
@@ -75,7 +76,8 @@ class Center(object):
             meta.append([host, color.green('OK')])
         if no_cluster_flag:
             utils.print_table(meta)
-            logger.error('Cancel sync conf')
+            msg = message.get('error_sync_conf')
+            logger.error(msg)
             return False
         meta = [['HOST', 'STATUS']]
         error_flag = False
@@ -472,7 +474,9 @@ class Center(object):
             max_try_count = 10
             while max_try_count > 0:
                 alive_count = self.get_alive_slave_redis_count()
-                logger.info('cur: {} / total: {}'.format(alive_count, s_count))
+                msg = message.get('counting_alive_redis')
+                msg = msg.format(alive=alive_count, total=s_count)
+                logger.info(msg)
                 if alive_count <= 0:
                     msg = message.get('complete_stop_slave_cluster')
                     logger.info(msg)
@@ -495,7 +499,9 @@ class Center(object):
             max_try_count = 10
             while max_try_count > 0:
                 alive_count = self.get_alive_master_redis_count()
-                logger.info('cur: {} / total: {}'.format(alive_count, m_count))
+                msg = message.get('counting_alive_redis')
+                msg = msg.format(alive=alive_count, total=m_count)
+                logger.info(msg)
                 if alive_count <= 0:
                     msg = message.get('complete_stop_master_redis')
                     logger.info(msg)
@@ -587,7 +593,9 @@ class Center(object):
                 alive_count += self.get_alive_master_redis_count()
             if slave:
                 alive_count += self.get_alive_slave_redis_count()
-            logger.info('cur: {} / total: {}'.format(alive_count, total))
+            msg = message.get('counting_alive_redis')
+            msg = msg.format(alive=alive_count, total=total)
+            logger.info(msg)
             if alive_count >= total:
                 msg = message.get('complete_all_redis_up')
                 logger.info(msg)
@@ -953,15 +961,16 @@ class Center(object):
 
     @staticmethod
     def _replicate_thread(m_ip, m_port, s_ip, s_port, fail_list):
-        logger.info('replicate [M] %s %s - [S] %s %s' % (
-            m_ip, m_port, s_ip, s_port))
+        msg = message.get('try_replicate')
+        m_addr = "{}:{}".format(m_ip, m_port)
+        s_addr = "{}:{}".format(s_ip, s_port)
+        msg = msg.format(master_addr=m_addr, slave_addr=s_addr)
+        logger.info(msg)
         try:
             m_ip = net.get_ip(m_ip)
             s_ip = net.get_ip(s_ip)
             trib.replicate(m_ip, m_port, s_ip, s_port)
         except Exception as ex:
-            m_addr = '{}:{}'.format(m_ip, m_port)
-            s_addr = '{}:{}'.format(s_ip, s_port)
             msg = message.get('error_replicate')
             msg = msg.format(master_addr=m_addr, slave_addr=s_addr)
             logger.error('\n'.join([msg, str(ex)]))

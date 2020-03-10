@@ -65,7 +65,6 @@ class HostNameError(LtcliBaseError):
     def __init__(self, host, *args):
         msg = m.get('error_unknown_host')
         message = msg.format(host=host)
-        message = "Unknown host name '{}'".format(host)
         LtcliBaseError.__init__(self, message, *args)
 
 

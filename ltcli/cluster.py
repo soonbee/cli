@@ -197,6 +197,8 @@ class Cluster(object):
             center.remove_all_of_redis_log_force()
             return
         center.cluster_clean()
+        msg = message.get('apply_after_restart')
+        logger.info(msg)
 
     def use(self, cluster_id):
         """Change selected cluster
@@ -349,7 +351,8 @@ class Cluster(object):
         # confirm info
         result = center.confirm_node_port_info(skip=yes)
         if not result:
-            logger.warn('Cancel add-slave')
+            msg = message.get('cancel')
+            logger.warning(msg)
             return
         # clean
         center.cluster_clean(master=False)
@@ -396,10 +399,11 @@ class Cluster(object):
                 success = False
                 for slave in node['slaves']:
                     if slave['status'] == 'connected':
-                        logger.info('failover {} for {}'.format(
-                            slave['addr'],
-                            node['addr']
-                        ))
+                        msg2 = message.get('redis_failover').format(
+                            slave_addr=slave['addr'],
+                            master_addr=node['addr']
+                        )
+                        logger.info(msg2)
                         stdout = center.run_failover(
                             slave['addr'],
                             take_over=True
@@ -448,12 +452,12 @@ class Cluster(object):
         current_time = time.strftime("%Y%m%d-%H%M", time.gmtime())
         for host, ports in classified_disconnected_list.items():
             msg = message.get('redis_run')
-            msg = msg.format(host=host, port='|'.join(ports))
+            msg = msg.format(host=host, ports='|'.join(ports))
             logger.info(msg)
             center.run_redis_process(host, ports, False, current_time)
         for host, ports in classified_paused_list.items():
             msg = message.get('redis_restart')
-            msg = msg.format(host=host, port='|'.join(ports))
+            msg = msg.format(host=host, ports='|'.join(ports))
             logger.info(msg)
             center.stop_redis_process(host, ports)
             center.run_redis_process(host, ports, False, current_time)
@@ -579,7 +583,9 @@ class Cluster(object):
             cluster_id
         )
         for host in hosts:
-            logger.info("Restore {} at {}".format(cluster_restore_dir, host))
+            msg = message.get('restore_cluster')
+            msg = msg.format(tag=cluster_backup_dir, host=host)
+            logger.info(msg)
             client = net.get_ssh(host)
             net.ssh_execute(client, command)
             client.close()

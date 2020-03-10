@@ -275,7 +275,7 @@ def ping(host, duration=3):
     print(response)
     logger.debug('ping to {}, respose: {}'.format(host, response))
     if response is not 0:
-        raise HostConnectionError(host, status_code=response)
+        raise HostConnectionError(host)
 
 
 def is_port_empty(host, port):

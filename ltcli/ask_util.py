@@ -2,7 +2,7 @@ import os
 import re
 
 # pylint: disable=unused-import
-# using like 'ask_util.askBool'
+# for using like 'ask_util.askBool'
 from ask import ask, askInt, askBool
 
 from ltcli.log import logger

@@ -96,7 +96,8 @@ class ThriftServer(object):
         for key, value in options.items():
             base_cmd += ' -{} {}'.format(key, value)
         logger.debug(base_cmd)
-        logger.info('Connecting...')
+        msg = message.get('try_connection')
+        logger.info(msg)
         os.system(base_cmd)
 
     def start(self):
