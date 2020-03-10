@@ -1238,6 +1238,9 @@ class Center(object):
                     break
 
         cluster_nodes = self.get_cluster_nodes()
+        if 'Redis is loading the dataset' in cluster_nodes:
+            msg = message.get('loading_dataset')
+            raise ClusterRedisError(msg)
         logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
         nodes_info = cluster_nodes.split('\n')
         master_nodes_info = []
