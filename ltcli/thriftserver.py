@@ -3,9 +3,9 @@ import os
 import re
 import time
 
-from fbctl import config
-from fbctl.log import logger
-from fbctl.exceptions import FileNotExistError, EnvError
+from ltcli import config, message
+from ltcli.log import logger
+from ltcli.exceptions import FileNotExistError, EnvError
 
 
 # pylint: disable=line-too-long, anomalous-backslash-in-string
@@ -70,6 +70,9 @@ def _find_files_with_regex(dir_path, pattern):
 
 
 class ThriftServer(object):
+    """Thriftserver command
+    """
+
     def beeline(self, **kargs):
         """Connect to thriftserver command line
         """
@@ -93,7 +96,8 @@ class ThriftServer(object):
         for key, value in options.items():
             base_cmd += ' -{} {}'.format(key, value)
         logger.debug(base_cmd)
-        logger.info('Connecting...')
+        msg = message.get('try_connection')
+        logger.info(msg)
         os.system(base_cmd)
 
     def start(self):
@@ -129,8 +133,8 @@ class ThriftServer(object):
         logger.debug(cmd)
         os.system(cmd)
 
-    def monitor(self, n=10):
-        """Show thriftserver log
+    def monitor(self):
+        """Monitoring log of thriftserver"
         """
         logger.debug('thriftserver_command_monitor')
         _check_spark()
@@ -147,14 +151,15 @@ class ThriftServer(object):
         log_file_path = os.path.join(spark_log, NOHUP_LOGFILE)
         if _find_files_with_regex(spark_log, ROLLING_LOGFILE_REGEX):
             log_file_path = os.path.join(spark_log, ROLLING_LOGFILE)
-        base_cmd = 'tail -F -n {} {}'.format(n, log_file_path)
+        base_cmd = 'tail -F {}'.format(log_file_path)
         cmd = '{}; {}'.format(source_cmd, base_cmd)
         logger.debug(cmd)
-        logger.info('Press Ctrl-C for exit.')
+        msg = message.get('message_for_exit')
+        logger.info(msg)
         os.system(cmd)
 
     def restart(self):
-        """Thriftserver restart
+        """Restart thriftserver
         """
         self.stop()
         time.sleep(2)

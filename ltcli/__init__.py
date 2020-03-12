@@ -1,6 +1,6 @@
 import os
 
-from fbctl import color
+from ltcli import color
 
 
 necessary_env = []
@@ -16,7 +16,7 @@ if 'LANG' not in os.environ:
 
 if necessary_env:
     msg = [
-        'To start using fbctl, you should set env {}'.format(
+        'To start using ltcli, you should set env {}'.format(
             ', '.join(necessary_env)
         ),
         'ex)',

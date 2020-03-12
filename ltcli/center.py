@@ -7,16 +7,12 @@ import shutil
 
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl.log import logger
-from fbctl import net
-from fbctl.rediscli_util import RedisCliUtil
-from fbctl.redistrib2 import command as trib
-from fbctl import utils
-from fbctl.deploy_util import DeployUtil, DEPLOYED
-from fbctl import ask_util
-from fbctl import color
-from fbctl.exceptions import (
+from ltcli import config, net, utils, ask_util, color, message
+from ltcli.log import logger
+from ltcli.rediscli_util import RedisCliUtil
+from ltcli.redistrib2 import command as trib
+from ltcli.deploy_util import DeployUtil, DEPLOYED
+from ltcli.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,
@@ -62,6 +58,7 @@ class Center(object):
         self.all_host_list = []
 
     def sync_conf(self, show_result=False):
+        msg = message.get('sync_conf')
         logger.info('sync conf')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         conf_path = path_of_fb['conf_path']
@@ -79,7 +76,8 @@ class Center(object):
             meta.append([host, color.green('OK')])
         if no_cluster_flag:
             utils.print_table(meta)
-            logger.error('Cancel sync conf')
+            msg = message.get('error_sync_conf')
+            logger.error(msg)
             return False
         meta = [['HOST', 'STATUS']]
         error_flag = False
@@ -100,13 +98,15 @@ class Center(object):
         if error_flag or show_result:
             utils.print_table(meta)
         if error_flag:
-            logger.error('Fail conf sync')
+            msg = message.get('error_sync_conf')
+            logger.error(msg)
             return False
         logger.info('OK')
         return True
 
     def sync_file(self, file_path, show_result=False):
-        logger.info('sync conf')
+        msg = message.get('sync_conf')
+        logger.info(msg)
         meta = [['HOST', 'STATUS']]
         my_address = config.get_local_ip_list()
         error_flag = False
@@ -129,7 +129,8 @@ class Center(object):
         if error_flag or show_result:
             utils.print_table(meta)
         if error_flag:
-            logger.error('Fail file sync')
+            msg = message.get('error_sync_conf')
+            logger.error(msg)
             return False
         logger.info('OK')
         return True
@@ -239,14 +240,16 @@ class Center(object):
         backup_path = os.path.join(sr2_redis_log, 'backup', current_time)
         logger.debug('backup path: {}'.format(backup_path))
         if master:
-            logger.info('Backup redis master log in each MASTER hosts...')
+            msg = message.get('backup_master_log')
+            logger.info(msg)
             self._backup_server_logs(
                 self.master_host_list,
                 self.master_port_list,
                 backup_path
             )
         if slave and self.slave_host_list:
-            logger.info('Backup redis slave log in each SLAVE hosts...')
+            msg = message.get('backup_slave_log')
+            logger.info(msg)
             self._backup_server_logs(
                 self.slave_host_list,
                 self.slave_port_list,
@@ -281,7 +284,9 @@ class Center(object):
             client.close()
 
     def conf_backup(self, host, cluster_id, tag):
-        logger.info('Backup conf of cluster {}...'.format(cluster_id))
+        logger.debug('conf_backup')
+        msg = message.get('backup_conf').format(cluster_id=cluster_id)
+        logger.info(msg)
         # prepare
         path_of_fb = config.get_path_of_fb(cluster_id)
         conf_path = path_of_fb['conf_path']
@@ -301,7 +306,10 @@ class Center(object):
         logger.info('OK, {}'.format(tag))
 
     def cluster_backup(self, host, cluster_id, tag):
-        logger.info('Backup cluster {} at {}...'.format(cluster_id, host))
+        logger.debug('cluster_backup')
+        msg = message.get('backup_cluster')
+        msg = msg.format(cluster_id=cluster_id, host=host)
+        logger.info(msg)
         # prepare
         path_of_fb = config.get_path_of_fb(cluster_id)
         cluster_path = path_of_fb['cluster_path']
@@ -314,13 +322,20 @@ class Center(object):
             sftp = net.get_sftp(client)
             sftp.mkdir(cluster_backup_path)
             sftp.close()
-        command = 'mv {} {}'.format(cluster_path, cluster_backup_tag_path)
-        net.ssh_execute(client=client, command=command)
+        if net.is_dir(client, cluster_path):
+            command = 'mv {} {}'.format(cluster_path, cluster_backup_tag_path)
+            net.ssh_execute(client=client, command=command)
+            logger.info('OK, {}'.format(tag))
+        else:
+            msg = message.get('skip_backup')
+            msg = msg.format(host=host, file=cluster_path)
+            logger.warning(msg)
         client.close()
-        logger.info('OK, {}'.format(tag))
 
     def conf_restore(self, host, cluster_id, tag):
-        logger.info('Restore conf to cluster {}...'.format(cluster_id))
+        logger.debug('conf_restore')
+        msg = message.get('restore_conf').format(cluster_id=cluster_id)
+        logger.info(msg)
         # prepare
         path_of_fb = config.get_path_of_fb(cluster_id)
         path_of_cli = config.get_path_of_cli(cluster_id)
@@ -384,11 +399,13 @@ class Center(object):
     def create_cluster(self, yes=False):
         """Create cluster
         """
-        logger.info('>>> Creating cluster')
-        logger.debug('create cluster start')
+        logger.debug('create_cluster')
+        msg = message.get('create_cluster')
+        logger.info(msg)
         result = self.confirm_node_port_info(skip=yes)
         if not result:
-            logger.warn('Cancel create')
+            msg = message.get('cancel')
+            logger.warning(msg)
             return
         m_ip_list = list(map(net.get_ip, self.master_host_list))
         targets = utils.get_ip_port_tuple_list(
@@ -402,9 +419,11 @@ class Center(object):
             return
         if self.slave_port_list:
             self.replicate()
-        logger.info('create cluster complete.')
+        msg = message.get('complete_cluster_create')
+        logger.info(msg)
 
     def confirm_node_port_info(self, skip=False):
+        logger.debug('comfirm_node_port_info')
         replicas = config.get_replicas(self.cluster_id)
         meta = [['HOST', 'PORT', 'TYPE']]
         for node in self.master_host_list:
@@ -415,14 +434,15 @@ class Center(object):
                 meta.append([node, port, 'SLAVE'])
         table = AsciiTable(meta)
         print(table.table)
-        print('replicas: {}\n'.format(replicas))
+        if replicas > 0:
+            logger.info('replicas: {}'.format(replicas))
         if skip:
             return True
-        msg = [
-            'Do you want to proceed with the replicate ',
-            'according to the above information?',
-        ]
-        yes = ask_util.askBool(''.join(msg), ['y', 'n'])
+        if replicas > 0:
+            msg = message.get('confirm_replicate_information')
+        else:
+            msg = message.get('confirm_cluster_create')
+        yes = ask_util.askBool(msg, ['y', 'n'])
         return yes
 
     def stop_redis_process(self, host, ports, force=False):
@@ -447,15 +467,19 @@ class Center(object):
         if not self.slave_host_list:
             slave = False
         if slave:
-            logger.info('Stopping slave cluster of redis...')
+            msg = message.get('stop_slave_cluster')
+            logger.info(msg)
             s_ports = self.slave_port_list
             s_count = len(self.slave_host_list) * len(s_ports)
             max_try_count = 10
             while max_try_count > 0:
                 alive_count = self.get_alive_slave_redis_count()
-                logger.info('cur: {} / total: {}'.format(alive_count, s_count))
+                msg = message.get('counting_alive_redis')
+                msg = msg.format(alive=alive_count, total=s_count)
+                logger.info(msg)
                 if alive_count <= 0:
-                    logger.info('Complete all slave redis process down')
+                    msg = message.get('complete_stop_slave_cluster')
+                    logger.info(msg)
                     success = True
                     break
                 max_try_count -= 1
@@ -464,18 +488,23 @@ class Center(object):
                         self.stop_redis_process(host, s_ports, force)
                 time.sleep(1)
         if slave and not success:
-            raise ClusterRedisError('Fail to stop redis: max try exceed')
+            msg = message.get('error_max_try_stop_redis')
+            raise ClusterRedisError(msg)
         success = False
         if master:
-            logger.info('Stopping master cluster of redis...')
+            msg = message.get('stop_master_cluster')
+            logger.info(msg)
             m_ports = self.master_port_list
             m_count = len(self.master_host_list) * len(m_ports)
             max_try_count = 10
             while max_try_count > 0:
                 alive_count = self.get_alive_master_redis_count()
-                logger.info('cur: {} / total: {}'.format(alive_count, m_count))
+                msg = message.get('counting_alive_redis')
+                msg = msg.format(alive=alive_count, total=m_count)
+                logger.info(msg)
                 if alive_count <= 0:
-                    logger.info('Complete all master redis process down')
+                    msg = message.get('complete_stop_master_redis')
+                    logger.info(msg)
                     success = True
                     break
                 max_try_count -= 1
@@ -484,20 +513,23 @@ class Center(object):
                         self.stop_redis_process(host, m_ports, force)
                 time.sleep(1)
         if master and not success:
-            raise ClusterRedisError('Fail to stop redis: max try exceed')
+            msg = message.get('error_max_try_stop_reids')
+            raise ClusterRedisError(msg)
 
     def create_redis_data_directory(self, master=True, slave=True):
         """ create directory SR2_REDIS_DATA, SR2_FLASH_DB_PATH
         """
         logger.debug('create_redis_data_directory')
         if master:
-            logger.info('create redis data directory in each MASTER hosts')
+            msg = message.get('mkdir_redis_data_for_master_cluster')
+            logger.info(msg)
             self._create_redis_data_directory(
                 self.master_host_list,
                 self.master_port_list,
             )
         if slave and self.slave_host_list:
-            logger.info('create redis data directory in each SLAVE hosts')
+            msg = message.get('mkdir_redis_data_for_slave_cluster')
+            logger.info(msg)
             self._create_redis_data_directory(
                 self.slave_host_list,
                 self.slave_port_list,
@@ -547,12 +579,13 @@ class Center(object):
         """Wait until all redis process up
         """
         logger.debug('wait_until_all_redis_process_up')
-        logger.info('Wait until all redis process up...')
-        total_count = 0
+        msg = message.get('wait_all_redis_up')
+        logger.info(msg)
+        total = 0
         if master:
-            total_count += len(self.master_host_list) * len(self.master_port_list)
+            total += len(self.master_host_list) * len(self.master_port_list)
         if slave:
-            total_count += len(self.slave_host_list) * len(self.slave_port_list)
+            total += len(self.slave_host_list) * len(self.slave_port_list)
         max_try_count = 10
         while max_try_count > 0:
             alive_count = 0
@@ -560,24 +593,28 @@ class Center(object):
                 alive_count += self.get_alive_master_redis_count()
             if slave:
                 alive_count += self.get_alive_slave_redis_count()
-            logger.info('cur: {} / total: {}'.format(alive_count, total_count))
-            if alive_count >= total_count:
-                logger.info('Complete all redis process up')
-                if alive_count != total_count:
-                    logger.warning('ClusterRedisWarning: too many process up')
+            msg = message.get('counting_alive_redis')
+            msg = msg.format(alive=alive_count, total=total)
+            logger.info(msg)
+            if alive_count >= total:
+                msg = message.get('complete_all_redis_up')
+                logger.info(msg)
+                if alive_count != total:
+                    msg = message.get('error_too_many_redis')
+                    logger.warning('ClusterRedisWarning: ' + msg)
                 return True
             time.sleep(1)
             max_try_count -= 1
             msg = [
-                'Fail to start redis: max try exceed',
-                "Recommendation Command: 'monitor'"
+                message.get('error_max_try_start_redis'),
+                message.get('command_recommendation').format(cmd='monitor')
             ]
-        # raise ClusterRedisError('Fail to start redis: max try exceed')
         raise ClusterRedisError('\n'.join(msg))
 
     def check_hosts_connection(self, hosts=None, show_result=False):
         logger.debug('check hosts connection')
-        logger.info('Check status of hosts...')
+        msg = message.get('check_hosts_connection')
+        logger.info(msg)
         if hosts is None:
             self.update_ip_port()
             hosts = self.all_host_list
@@ -622,6 +659,9 @@ class Center(object):
         return False
 
     def remove_all_of_redis_log_force(self):
+        logger.debug('remove_all_of_redis_log_force')
+        msg = message.get('remove_all_redis_log')
+        logger.info(msg)
         logger.info('remove all of redis log')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_log = path_of_fb['sr2_redis_log']
@@ -633,6 +673,7 @@ class Center(object):
             logger.info(' - {}'.format(host))
 
     def remove_generated_config(self, client, port_list):
+        logger.debug('remove_generated_config')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_conf = path_of_fb['sr2_redis_conf']
         command = [
@@ -657,6 +698,7 @@ class Center(object):
         net.ssh_execute(client, command)
 
     def _remove_data(self, client, port_list):
+        logger.debug('_remove_data')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         props_path = path_of_fb['redis_properties']
         prefix_srd = config.get_props(props_path, 'sr2_redis_data')
@@ -697,6 +739,7 @@ class Center(object):
         net.ssh_execute(client, command)
 
     def _remove_node_conf(self, client, port_list):
+        logger.debug('_remove_node_conf')
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         props_path = path_of_fb['redis_properties']
         prefix_srd = config.get_props(props_path, 'sr2_redis_data')
@@ -720,8 +763,10 @@ class Center(object):
         net.ssh_execute(client, command)
 
     def cluster_clean(self, master=True, slave=True):
+        logger.debug('cluster_clean')
         if master:
-            logger.info('clean redis conf, node conf, db data of master')
+            msg = message.get('clean_master_cluster')
+            logger.info(msg)
             for host in self.master_host_list:
                 logger.info(' - {}'.format(host))
                 client = net.get_ssh(host)
@@ -730,7 +775,8 @@ class Center(object):
                 self._remove_node_conf(client, self.master_port_list)
                 client.close()
         if slave and self.slave_host_list:
-            logger.info('clean redis conf, node conf, db data of slave')
+            msg = message.get('clean_slave_cluster')
+            logger.info(msg)
             for host in self.slave_host_list:
                 logger.info(' - {}'.format(host))
                 client = net.get_ssh(host)
@@ -771,7 +817,7 @@ class Center(object):
             res = res and net.is_exist_files(client, conf_path_list)
             client.close()
             if not res:
-                msg = "conf file not exist at '{}'".format(host)
+                msg = message.get('error_conf_not_exist').format(host)
                 raise ClusterRedisError(msg)
 
     def start_redis_process(self, profile=False, master=True, slave=True):
@@ -792,18 +838,18 @@ class Center(object):
         if master:
             m_port = self.master_port_list
             for host in self.master_host_list:
-                logger.info('Starting master nodes : {} : {} ...'.format(
-                    host,
-                    '|'.join(list(map(str, m_port)))
-                ))
+                msg = message.get('start_redis_of_master_cluster')
+                stringfied_ports = '|'.join(list(map(str, m_port))) 
+                msg = msg.format(host=host, ports=stringfied_ports)
+                logger.info(msg)
                 self.run_redis_process(host, m_port, profile, current_time)
         if slave:
             s_port = self.slave_port_list
             for host in self.slave_host_list:
-                logger.info('Starting slave nodes : {} : {} ...'.format(
-                    host,
-                    '|'.join(list(map(str, s_port)))
-                ))
+                msg = message.get('start_redis_of_slave_cluster')
+                stringfied_ports = '|'.join(list(map(str, s_port))) 
+                msg = msg.format(host=host, ports=stringfied_ports)
+                logger.info(msg)
                 self.run_redis_process(host, s_port, profile, current_time)
 
     def run_redis_process(self, host, ports, profile, current_time):
@@ -866,7 +912,8 @@ class Center(object):
 
     def ensure_cluster_exist(self):
         logger.debug('ensure_cluster_exist')
-        logger.info('Check cluster exist...')
+        msg = message.get('check_cluster_exist')
+        logger.info(msg)
         hosts = self.all_host_list
         for host in hosts:
             logger.info(' - {}'.format(host))
@@ -914,16 +961,18 @@ class Center(object):
 
     @staticmethod
     def _replicate_thread(m_ip, m_port, s_ip, s_port, fail_list):
-        logger.info('replicate [M] %s %s - [S] %s %s' % (
-            m_ip, m_port, s_ip, s_port))
+        msg = message.get('try_replicate')
+        m_addr = "{}:{}".format(m_ip, m_port)
+        s_addr = "{}:{}".format(s_ip, s_port)
+        msg = msg.format(master_addr=m_addr, slave_addr=s_addr)
+        logger.info(msg)
         try:
             m_ip = net.get_ip(m_ip)
             s_ip = net.get_ip(s_ip)
             trib.replicate(m_ip, m_port, s_ip, s_port)
         except Exception as ex:
-            m_addr = '{}:{}'.format(m_ip, m_port)
-            s_addr = '{}:{}'.format(s_ip, s_port)
-            msg = 'Fail replicate [M] {} - [S] {}'.format(m_addr, s_addr)
+            msg = message.get('error_replicate')
+            msg = msg.format(master_addr=m_addr, slave_addr=s_addr)
             logger.error('\n'.join([msg, str(ex)]))
             fail_list.append((m_ip, m_port, s_ip, s_port))
 
@@ -942,12 +991,14 @@ class Center(object):
             x.start()
         for x in threads:
             x.join()
-        logger.info('{} / {} replicate completion'.format(
-            len(threads) - len(fail_list),
-            len(threads)
-        ))
+        total_count = len(threads)
+        msg = message.get('complete_replicate')
+        success_count = total_count - len(fail_list)
+        msg = msg.format(success=success_count, total=total_count)
+        logger.info(msg)
 
     def cli_config_get(self, key, host, port):
+        logger.debug('cli_config_get')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
@@ -986,6 +1037,7 @@ class Center(object):
             return False
 
     def cli_config_set_all(self, key, value, hosts, ports):
+        logger.debug('cli_config_set_all')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
@@ -1021,6 +1073,15 @@ class Center(object):
         return success
 
     def get_cluster_nodes(self):
+        def _async_check_output(command, output):
+            try:
+                logger.debug("subprocess check output '{}'".format(command))
+                ret = subprocess.check_output(command, shell=True)
+                output.append(utils.to_str(ret))
+            except Exception as ex:
+                logger.debug(ex)
+
+        logger.debug('get_cluster_nodes')
         lib_path = config.get_ld_library_path(self.cluster_id)
         path_of_fb = config.get_path_of_fb(self.cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
@@ -1034,40 +1095,36 @@ class Center(object):
         redis_cli_cmd = os.path.join(sr2_redis_bin, 'redis-cli')
         sub_cmd = 'cluster nodes 2>&1'
         t = 2
+        host_port_list = []
         for host in self.master_host_list:
             for port in self.master_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
+                host_port_list.append((host, port))
         for host in self.slave_host_list:
             for port in self.slave_port_list:
-                command = '{} timeout {} {} -h {} -p {} {}'.format(
-                    ' '.join(env_cmd),
-                    t,
-                    redis_cli_cmd,
-                    host,
-                    port,
-                    sub_cmd,
-                )
-                try:
-                    ret = subprocess.check_output(command, shell=True)
-                    return utils.to_str(ret)
-                except Exception as ex:
-                    logger.debug(ex)
-        msg = 'All redis is disconnected or paused.'
-        raise ClusterRedisError(msg)
+                host_port_list.append((host, port))
+        output = []
+        threads = []
+        for host, port in host_port_list:
+            command = '{} timeout {} {} -h {} -p {} {}'.format(
+                ' '.join(env_cmd),
+                t,
+                redis_cli_cmd,
+                host,
+                port,
+                sub_cmd,
+            )
+            thread = Thread(target=_async_check_output, args=(command, output))
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if not output:
+            msg = message.get('all_redis_disconnected')
+            raise ClusterRedisError(msg)
+        return output[0]
 
-    def ping(self, addr, t=0.5, c=3):
+    def ping(self, addr, t=3, c=3):
         """ping to redis
         return exit status
         0: PONG
@@ -1137,18 +1194,53 @@ class Center(object):
             {
                 node_id: string
                 addr: string(host:port)
-                status: string(connected / disconnected / paused
+                status: string(connected / disconnected / paused)
                 slaves: [
                     {
                         node_id: string
                         addr: string(host:port)
-                        status: string(connected / disconnected / paused
+                        status: string(connected / disconnected / paused)
                     }
                 ]
             }
         ]
         """
+        def _check_master_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            logger.debug("master {} {}".format(splited[1], status))
+            node_list.append({
+                "node_id": splited[0],
+                "addr": splited[1],
+                "status": status,
+                "slaves": []
+            })
+
+        def _check_slave_node(node_list, line, func):
+            status = 'disconnected' if 'disconnected' in line else 'connected'
+            splited = line.split()
+            if status == 'connected':
+                exit_code = func(splited[1])
+                if exit_code == 124:
+                    status = 'paused'
+            logger.debug("slave {} {}".format(splited[1], status))
+            for master_node in node_list:
+                if master_node["node_id"] in line:
+                    master_node["slaves"].append({
+                        "node_id": splited[0],
+                        "addr": splited[1],
+                        "status": status
+                    })
+                    break
+
         cluster_nodes = self.get_cluster_nodes()
+        if 'Redis is loading the dataset' in cluster_nodes:
+            msg = message.get('loading_dataset')
+            raise ClusterRedisError(msg)
         logger.debug('result of cluster nodes: {}'.format(cluster_nodes))
         nodes_info = cluster_nodes.split('\n')
         master_nodes_info = []
@@ -1159,39 +1251,37 @@ class Center(object):
             if 'slave' in line:
                 slave_nodes_info.append(line)
 
+        logger.debug('master nodes info: {}'.format(master_nodes_info))
         if len(master_nodes_info) <= 1:
-            raise ClusterRedisError("Need to create cluster")
+            msg = message.get('error_need_to_cluster')
+            raise ClusterRedisError(msg)
 
         master_node_list = []
+        threads = []
         for line in master_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            master_node_list.append({
-                "node_id": splited[0],
-                "addr": splited[1],
-                "status": status,
-                "slaves": []
-            })
+            thread = Thread(
+                target=_check_master_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
         master_node_list.sort(key=lambda node: node['addr'])
 
+        threads = []
         for line in slave_nodes_info:
-            status = 'disconnected' if 'disconnected' in line else 'connected'
-            splited = line.split()
-            if status == 'connected':
-                exit_code = self.ping(splited[1])
-                if exit_code == 124:
-                    status = 'paused'
-            for master_node in master_node_list:
-                if master_node["node_id"] in line:
-                    master_node["slaves"].append({
-                        "node_id": splited[0],
-                        "addr": splited[1],
-                        "status": status
-                    })
+            thread = Thread(
+                target=_check_slave_node,
+                args=(master_node_list, line, self.ping)
+            )
+            threads.append(thread)
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
         master_node_list.sort(key=lambda node: node['addr'].split(':')[1])
         for master in master_node_list:
             master["slaves"].sort(key=lambda node: node['addr'].split(':')[1])
@@ -1208,6 +1298,21 @@ class Center(object):
                     no_slave = False
                     break
             if no_slave:
-                msg = 'Not exist alive slave: {}'.format(master['addr'])
+                msg = message.get('error_master_has_no_alive_slave')
+                msg = msg.format(master_addr=master['addr'])
                 raise ClusterRedisError(msg)
         return slaves_for_failover
+
+    def check_port_is_enable(self, host_ports_list):
+        command = 'netstat -tnlp | grep LISTEN | awk \'{print $4}\''
+        conflict = []
+        for host, ports in host_ports_list:
+            client = net.get_ssh(host)
+            _, stdout, _ = net.ssh_execute(client, command)
+            in_use_list = utils.to_str(stdout.strip()).split()
+            in_use_ports = set(map(lambda x: x.split(':')[-1], in_use_list))
+            for port in ports:
+                port = str(port)
+                if port in in_use_ports:
+                    conflict.append([host, port])
+        return conflict

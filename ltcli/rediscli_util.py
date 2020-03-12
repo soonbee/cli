@@ -7,9 +7,8 @@ import subprocess
 from threading import Thread
 import time
 
-from fbctl import config
-from fbctl import utils
-from fbctl.log import logger
+from ltcli import config, utils, message
+from ltcli.log import logger
 
 
 class RedisCliUtil(object):
@@ -112,7 +111,6 @@ class RedisCliUtil(object):
         index = random.randrange(0, count)
         target = targets[index]
         ip, port = target
-        # logger.info('redis-cli connect to %s:%s' % (ip, port))
         outs = ''
         redis_cli = os.path.join(config.get_tsr2_home(), 'bin', 'redis-cli')
         env = utils.make_export_envs(ip, port)
@@ -166,7 +164,7 @@ class RedisCliUtil(object):
         return outs, meta
 
     @staticmethod
-    def command_all_async(sub_cmd):
+    def command_all_async(sub_cmd, slave=True):
         def _async_target_func(m_s, pre_cmd, host, port, sub_cmd, ret):
             try:
                 command = '{} -h {} -p {} {}'.format(pre_cmd, host, port, sub_cmd)
@@ -181,8 +179,9 @@ class RedisCliUtil(object):
         cluster_id = config.get_cur_cluster_id()
         master_host_list = config.get_master_host_list(cluster_id)
         master_port_list = config.get_master_port_list(cluster_id)
-        slave_host_list = config.get_slave_host_list(cluster_id)
-        slave_port_list = config.get_slave_port_list(cluster_id)
+        if slave:
+            slave_host_list = config.get_slave_host_list(cluster_id)
+            slave_port_list = config.get_slave_port_list(cluster_id)
         path_of_fb = config.get_path_of_fb(cluster_id)
         sr2_redis_bin = path_of_fb['sr2_redis_bin']
 
@@ -206,18 +205,20 @@ class RedisCliUtil(object):
                     args=('Master', pre_cmd, host, port, sub_cmd, ret),
                 )
                 threads.append(t)
-        for host in slave_host_list:
-            for port in slave_port_list:
-                t = Thread(
-                    target=_async_target_func,
-                    args=('Slave', pre_cmd, host, port, sub_cmd, ret),
-                )
-                threads.append(t)
+        if slave:
+            for host in slave_host_list:
+                for port in slave_port_list:
+                    t = Thread(
+                        target=_async_target_func,
+                        args=('Slave', pre_cmd, host, port, sub_cmd, ret),
+                    )
+                    threads.append(t)
         for th in threads:
             th.start()
             time.sleep(0.02)
         for th in threads:
             th.join()
+        logger.debug(ret)
         return ret
 
     @staticmethod
@@ -232,6 +233,8 @@ class RedisCliUtil(object):
         path_of_fb = config.get_path_of_fb(cluster_id)
         master_template = path_of_fb['master_template']
         slave_template = path_of_fb['slave_template']
+        msg = message.get('save_config_to_template')
+        logger.info(msg)
         RedisCliUtil._save_config(master_template, key, value)
         RedisCliUtil._save_config(slave_template, key, value)
 
@@ -239,7 +242,8 @@ class RedisCliUtil(object):
     def _save_config(f, key, value):
         inplace_count = 0
         for line in fileinput.input(f, inplace=True):
-            if line.startswith(key):
+            words = line.split()
+            if words and words[0] == key:
                 msg = '{key} {value}'.format(key=key, value=value)
                 inplace_count += 1
                 print(msg)
@@ -247,6 +251,7 @@ class RedisCliUtil(object):
                 print(line, end='')
         logger.debug('inplace: %d (%s)' % (inplace_count, f))
         if inplace_count == 1:
-            logger.info('save config(%s) success' % f)
+            logger.debug('save config(%s) success' % f)
         else:
-            logger.warn('save config(%s) fail(%d)' % (f, inplace_count))
+            msg = message.get('error_save_config').format(key=key, file=f)
+            logger.warning(msg)

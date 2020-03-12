@@ -2,13 +2,10 @@ from __future__ import print_function
 
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl import utils
-from fbctl import color
-from fbctl.center import Center
-from fbctl.rediscli_util import RedisCliUtil
-from fbctl.utils import TableReport
-from fbctl.log import logger
+from ltcli import config, utils, color, message as m
+from ltcli.center import Center
+from ltcli.rediscli_util import RedisCliUtil
+from ltcli.log import logger
 
 
 class RedisCliInfo(object):
@@ -16,27 +13,27 @@ class RedisCliInfo(object):
         pass
 
     def all(self, host=None, port=None):
-        """Command: cli info all"""
+        """Command: redis-cli info all"""
         RedisCliUtil.command(sub_cmd='info', host=host, port=port)
 
     def memory(self, host=None, port=None):
-        """Command: cli info memory"""
+        """Command: redis-cli info memory"""
         RedisCliUtil.command(sub_cmd='info memory', host=host, port=port)
 
     def eviction(self, host=None, port=None):
-        """Command: cli info eviction"""
+        """Command: redis-cli info eviction"""
         RedisCliUtil.command(sub_cmd='info eviction', host=host, port=port)
 
     def keyspace(self, host=None, port=None):
-        """Command: cli info keyspace"""
+        """Command: redis-cli info keyspace"""
         RedisCliUtil.command(sub_cmd='info keyspace', host=host, port=port)
 
     def tablespace(self, host=None, port=None):
-        """Command: cli info tablespace"""
+        """Command: redis-cli info tablespace"""
         RedisCliUtil.command(sub_cmd='info tablespace', host=host, port=port)
 
     def replication(self, host=None, port=None):
-        """Command: cli info replication"""
+        """Command: redis-cli info replication"""
         RedisCliUtil.command('info replication', host=host, port=port)
 
 
@@ -45,15 +42,15 @@ class RedisCliCluster(object):
         pass
 
     def info(self):
-        """Command: cli cluster info"""
+        """Command: redis-cli cluster info"""
         RedisCliUtil.command('cluster info')
 
     def nodes(self):
-        """Command: cli cluster nodes"""
+        """Command: redis-cli cluster nodes"""
         RedisCliUtil.command('cluster nodes')
 
     def slots(self):
-        """Command: cli cluster slots"""
+        """Command: redis-cli cluster slots"""
         def formatter(outs):
             lines = outs.splitlines()
             replicas = config.get_replicas()
@@ -78,19 +75,37 @@ class RedisCliConfig(object):
     def __init__(self):
         pass
 
+    def no_print(self, output):
+        pass
+
+    def _is_cluster_unit(self, key):
+        return key in ['flash-db-size-limit']
+
+    def _convert_2_cluster_limit(self, ret):
+        combined = 0
+        for m_s, _, _, _, message in ret:
+            if message and m_s == 'Master':
+                _, value = message.split('\n')
+                if utils.is_number(value):
+                    combined += int(value)
+        return combined
+
     def get(self, key, all=False, host=None, port=None):
-        """Command: cli config get [key]
+        """Command: redis-cli config get
 
         :param key: redis config keyword
-        :param all: If True, command to all nodes
-        :param host: host
-        :param port: port
+        :param all: If true, send command to all redis
+        :param host: host info for redis
+        :param port: port info for redis
         """
         if not isinstance(all, bool):
-            logger.error("option '--all' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='all')
+            logger.error(msg)
             return
         if (not host or not port) and not all:
-            logger.error("Enter host and port or use '--all' option.")
+            msg = m.get('use_host_port_or_option_all')
+            logger.error(msg)
             return
         sub_cmd = 'config get "{key}" 2>&1'.format(key=key)
         if all:
@@ -99,60 +114,80 @@ class RedisCliConfig(object):
             for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    _, value = message.split('\n')
-                    meta.append([m_s, addr, value])
+                    if message:
+                        _, value = message.split('\n')
+                        meta.append([m_s, addr, value])
+                    else:
+                        meta.append([m_s, addr, color.red('Invalid Key')])
                 else:
                     meta.append([m_s, addr, color.red(result)])
             utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
-            return
-        if all:
-            RedisCliUtil.command_all(
-                sub_cmd=sub_cmd,
-                formatter=utils.print_table)
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output:
+                key, value = output.split('\n')
+                logger.info(value)
+            else:
+                msg = m.get('error_invalid_key').format(key=key)
+                logger.error(msg)
 
     def set(self, key, value, all=False, save=False, host=None, port=None):
-        """Command: cli config set [key] [value]
+        """Command: redis-cli config set
 
-        :param key: redis config keyword
-        :param value: value
-        :param save: If True, save value to config file
-        :param all: If True, command to all nodes
-        :param host: host
-        :param port: port
+        :param key: target key
+        :param value: value to set
+        :param save: If true, save value to config file
+        :param all: If true, send command to all redis
+        :param host: host info for redis
+        :param port: port info for redis
         """
         if not isinstance(all, bool):
-            logger.error("option '--all' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='all')
+            logger.error(msg)
             return
         if not isinstance(save, bool):
-            logger.error("option '--save' can use only 'True' or 'False'")
+            msg = m.get('error_option_type_not_boolean')
+            msg = msg.format(options='save')
+            logger.error(msg)
             return
         if (not host or not port) and not all:
-            logger.error("Enter host and port or use '--all' option.")
+            msg = m.get('use_host_port_or_option_all')
+            logger.error(msg)
             return
         sub_cmd = 'config set {key} {value} 2>&1'.format(key=key, value=value)
         if all:
             meta = []
             ret = RedisCliUtil.command_all_async(sub_cmd)
             ok_cnt = 0
-            for m_s, host, port, result, _ in ret:
+            for m_s, host, port, result, message in ret:
                 addr = '{}:{}'.format(host, port)
                 if result == 'OK':
-                    ok_cnt += 1
+                    if utils.to_str(message) == 'OK':
+                        ok_cnt += 1
+                    else:
+                        meta.append([m_s, addr, color.red(message)])
                 else:
                     meta.append([m_s, addr, color.red('FAIL')])
             if meta:
                 utils.print_table([['TYPE', 'ADDR', 'RESULT']] + meta)
             logger.info('success {}/{}'.format(ok_cnt, len(ret)))
         else:
-            RedisCliUtil.command(
+            output = RedisCliUtil.command(
                 sub_cmd=sub_cmd,
                 host=host,
-                port=port)
+                port=port,
+                formatter=self.no_print)
+            output = output.strip()
+            if output == "OK":
+                logger.info(output)
+            else:
+                logger.error(output)
         if save:
             RedisCliUtil.save_redis_template_config(key, value)
             center = Center()

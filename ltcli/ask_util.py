@@ -2,13 +2,11 @@ import os
 import re
 
 # pylint: disable=unused-import
-# using like 'ask_util.askBool'
+# for using like 'ask_util.askBool'
 from ask import ask, askInt, askBool
 
-from fbctl.log import logger
-from fbctl import config
-from fbctl import net
-from fbctl import utils
+from ltcli.log import logger
+from ltcli import config, net, utils, message
 
 
 START_PORT = 18000
@@ -23,8 +21,8 @@ def hosts(save, default=None):
     deploy_history = config.get_deploy_history()
     if not default:
         default = deploy_history['hosts']
-    q = 'Please type host list separated by comma(,)'
-    result = ask(q, default=', '.join(default))
+    msg = message.get('ask_hosts')
+    result = ask(msg, default=', '.join(default))
     result = list(map(lambda x: x.strip(), result.split(',')))
     if save:
         deploy_history['hosts'] = result
@@ -64,25 +62,12 @@ def installer():
             name=obj['name'],
             type=obj['type'].upper(),
         ))
-    msg = [
-        'Select installer',
-        '',
-        '    [ INSTALLER LIST ]',
-        '{}\n'.format('\n'.join(formatted)),
-        'Please enter the number, file path or url of the installer you want to use.',
-        "you can also add file in list by copy to '$FBPATH/releases/'",
-    ]
-    if not installer_list:
-        msg = [
-            'Select installer',
-            '',
-            '    [ INSTALLER LIST ]',
-            '    (empty)\n\n'
-            'Please enter file path or url of the installer you want to use',
-            "you can also add file in list by copy to '$FBPATH/releases/'",
-        ]
+    if not formatted:
+        formatted.append('    (empty)')
 
-    result = ask('\n'.join(msg))
+    stringfied_list = '\n'.join(formatted)
+    msg = '\n'.join(message.get('ask_installer')).format(list=stringfied_list)
+    result = ask(msg)
     while True:
         result = result.strip()
         if installer_list and utils.is_number(result):
@@ -98,33 +83,26 @@ def installer():
                     if success:
                         logger.info('OK, {}'.format(file_name))
                         return installer_path
-                    msg = [
-                        "Fail to download from '{}', ".format(url),
-                        'try again.'
-                    ]
-                    logger.error(''.join(msg))
+                    msg = message.get('error_download_installer')
+                    msg = msg.format(url=url)
+                    logger.error(msg)
                 if selected['type'] == 'local':
                     ret = selected['url']
                     logger.debug('Select insaller in list: {}'.format(ret))
                     logger.info('OK, {}'.format(selected['name']))
                     return os.path.expanduser(ret)
-            msg = [
-                'Choose a number ',
-                'between 1 and {}'.format(len(installer_list)),
-                ', please try again'
-            ]
-            logger.error(''.join(msg))
+            msg = message.get('error_select_number')
+            msg = msg.format(max_number=len(installer_list))
+            logger.error(msg)
         elif result.startswith(('~', '/')):
             # case: type path
             if os.path.isfile(os.path.expanduser(result)):
                 logger.debug('Select insaller by path: {}'.format(result))
                 logger.info('OK, {}'.format(os.path.basename(result)))
                 return os.path.expanduser(result)
-            msg = [
-                "File not existed: '{}'".format(result),
-                ', please try again'
-            ]
-            logger.error(''.join(msg))
+            msg = message.get('error_type_installer_path')
+            msg = msg.format(file_path=result)
+            logger.error(msg)
         elif result.startswith(('http://', 'https://')):
             # case: type url
             url = result
@@ -134,13 +112,13 @@ def installer():
             if success:
                 logger.info('OK, {}'.format(file_name))
                 return installer_path
-            logger.error("Fail to download from '{}', try again".format(url))
+            msg = message.get('error_download_installer')
+            msg = msg.format(url=url)
+            logger.error(msg)
         else:
-            msg = [
-                "Invalid input: '{}', ".format(result),
-                "please try again",
-            ]
-            logger.error(''.join(msg))
+            msg = message.get('error_invalid_input')
+            msg = msg.format(value=result)
+            logger.error(msg)
         result = ask('')
 
 
@@ -157,10 +135,10 @@ def master_ports(save, cluster_id, default_count=None):
     deploy_history = config.get_deploy_history()
     if not default_count:
         default_count = deploy_history['master_count']
-    q = 'How many masters would you like to create on each host?'
-    m_count = int(askInt(q, default=str(default_count)))
+    msg = message.get('ask_master_count')
+    m_count = int(askInt(msg, default=str(default_count)))
     if m_count <= 0:
-        logger.warn("The number of master must be greater than 0. try again.")
+        logger.error(message.get('error_master_count_less_than_1'))
         return master_ports(cluster_id, default_count)
     logger.info('OK, {}'.format(m_count))
     if save:
@@ -174,12 +152,8 @@ def master_ports(save, cluster_id, default_count=None):
     else:
         default_m_ports = '{}-{}'.format(start_m_ports, end_m_ports)
 
-    q = [
-        'Please type ports separate with comma(,) ',
-        'and use hyphen(-) for range.',
-    ]
     while True:
-        result = ask(''.join(q), default=default_m_ports)
+        result = ask(message.get('ask_ports'), default=default_m_ports)
         result = list(map(lambda x: x.strip(), result.split(',')))
         valid = True
         m_ports = set()
@@ -190,7 +164,8 @@ def master_ports(save, cluster_id, default_count=None):
             if matched:
                 s, e = map(int, item.split('-'))
                 if s > e:
-                    logger.error('Invalid range: {}'.format(item))
+                    msg = message.get('error_invalid_range').format(value=item)
+                    logger.error(msg)
                     valid = False
                     break
                 m_ports.update(range(s, e + 1))
@@ -200,7 +175,8 @@ def master_ports(save, cluster_id, default_count=None):
                 m_ports.add(int(item))
                 continue
             else:
-                logger.error('Invalid input: {}'.format(item))
+                msg = message.get('error_invalid_input').format(value=item)
+                logger.error(msg)
                 valid = False
                 break
         if not valid:
@@ -210,20 +186,19 @@ def master_ports(save, cluster_id, default_count=None):
             if not port_range_safe(port):
                 out_of_range.append(port)
         if out_of_range:
-            msg = 'Use port between {} and {}: {}'.format(
-                PORT_MININUM,
-                PORT_MAXIMUM,
-                out_of_range,
+            msg = message.get('error_port_range').format(
+                minimum=PORT_MININUM,
+                maximum=PORT_MAXIMUM,
+                value=out_of_range,
             )
             logger.error(msg)
             continue
         if valid and len(m_ports) != m_count:
-            q2 = [
-                "You type count '{}' at first, ".format(m_count),
-                "but now count is '{}'. ".format(len(m_ports)),
-                'try again.'
-            ]
-            logger.error(''.join(q2))
+            msg = message.get('error_port_count_different').format(
+                advance=m_count,
+                current=len(m_ports),
+            )
+            logger.error(msg)
             continue
         if valid:
             break
@@ -237,14 +212,10 @@ def replicas(save, default=None):
     deploy_history = config.get_deploy_history()
     if not default:
         default = deploy_history['replicas']
-    q = 'How many replicas would you like to create on each master?'
-    result = int(askInt(q, default=str(default)))
+    result = askInt(message.get('ask_replicas'), default=str(default))
+    result = int(result)
     if result < 0:
-        msg = [
-            'The number of master must be greater than or equal to 0.',
-            'try again.',
-        ]
-        logger.error(' '.join(msg))
+        logger.error(message.get('error_replicas_less_than_0'))
         return replicas(save, default=default)
     if save:
         deploy_history['replicas'] = result
@@ -265,13 +236,9 @@ def slave_ports(cluster_id, m_count, replicas_count):
         default_s_ports = str(start_s_ports)
     else:
         default_s_ports = '{}-{}'.format(start_s_ports, end_s_ports)
-    q = [
-        'Please type ports separate with comma(,) ',
-        'and use hyphen(-) for range.',
-    ]
 
     while True:
-        result = ask(''.join(q), default=default_s_ports)
+        result = ask(message.get('ask_ports'), default=default_s_ports)
         result = list(map(lambda x: x.strip(), result.split(',')))
         valid = True
         s_ports = set()
@@ -282,7 +249,8 @@ def slave_ports(cluster_id, m_count, replicas_count):
             if m:
                 s, e = map(int, item.split('-'))
                 if s > e:
-                    logger.error('Invalid range: {}'.format(item))
+                    msg = message.get('error_invalid_range').format(value=item) 
+                    logger.error(msg)
                     valid = False
                     break
                 s_ports.update(range(s, e + 1))
@@ -292,7 +260,8 @@ def slave_ports(cluster_id, m_count, replicas_count):
                 s_ports.add(int(item))
                 continue
             else:
-                logger.error('Invalid input: {}'.format(item))
+                msg = message.get('error_invalid_input').format(value=item)
+                logger.error(msg)
                 valid = False
                 break
         out_of_range = []
@@ -300,20 +269,20 @@ def slave_ports(cluster_id, m_count, replicas_count):
             if not port_range_safe(port):
                 out_of_range.append(port)
         if out_of_range:
-            logger.error('Use port between {} and {}: {}'.format(
-                PORT_MININUM,
-                PORT_MAXIMUM,
-                out_of_range
-            ))
+            msg = message.get('error_port_range').format(
+                minimum=PORT_MININUM,
+                maximum=PORT_MAXIMUM,
+                value=out_of_range,
+            )
+            logger.error(msg)
             continue
         if valid and len(s_ports) != s_count:
             real_replicas_count = len(s_ports) / float(m_count)
-            msg = [
-                "You type replicas '{}' at first, ".format(replicas),
-                "but now count is '{}'. ".format(real_replicas_count),
-                'try again.'
-            ]
-            logger.error(''.join(msg))
+            msg = message.get('error_port_count_different').format(
+                advance=replicas_count,
+                current=int(real_replicas_count),
+            )
+            logger.error(msg)
             continue
         if valid:
             break
@@ -327,10 +296,9 @@ def ssd_count(save, default=None):
     deploy_history = config.get_deploy_history()
     if not default:
         default = deploy_history['ssd_count']
-    q = 'How many ssd would you like to use?'
-    result = int(askInt(q, default=str(default)))
+    result = int(askInt(message.get('ask_ssd_count'), default=str(default)))
     if result <= 0:
-        logger.warn("The number of ssd must be greater than 0. try again.")
+        logger.error(message.get('error_ssd_count_less_than_1'))
         return ssd_count(save=save, default=default)
     if save:
         deploy_history['ssd_count'] = result
@@ -341,9 +309,9 @@ def ssd_count(save, default=None):
 
 def base_directory(default='~/tsr2'):
     logger.debug('ask base directory')
-    result = ask('Type base directory of flashbase', default=default)
+    result = ask(message.get('ask_base_directory'), default=default)
     if not result.startswith(('~', '/')):
-        logger.error("Invalid path: '{}', try again".format(result))
+        logger.error(message.get('error_invalid_path').format(value=result))
         return base_directory()
     logger.info('OK, {}'.format(result))
     cli_config = config.get_cli_config()
@@ -357,8 +325,7 @@ def prefix_of_db_path(save, default=None):
     deploy_history = config.get_deploy_history()
     if not default:
         default = deploy_history['prefix_of_db_path']
-    q = 'Type prefix of db path'
-    result = ask(q, default=default)
+    result = ask(message.get('ask_db_path'), default=default)
     result = result.strip()
     if save:
         deploy_history['prefix_of_db_path'] = result
@@ -385,22 +352,16 @@ def host_for_monitor(host_list):
     formatted = []
     for i, v in enumerate(host_list):
         formatted.append('    ({}) {}'.format(i + 1, v))
-    msg = [
-        'Select host',
-        '',
-        '   [ HOST LIST ]',
-        '{}\n'.format('\n'.join(formatted)),
-        'Please enter the number you want to see log.',
-    ]
-    target_num = int(askInt('\n'.join(msg), default='1'))
+    stringfied_list = '\n'.join(formatted)
+    msg = '\n'.join(message.get('ask_host_for_monitor'))
+    msg = msg.format(list=stringfied_list)
+    target_num = int(askInt(msg, default='1'))
     while True:
         if target_num > 0 and target_num <= len(host_list):
             break
-        msg = [
-            'Choose a number ',
-            'between 1 and {}'.format(len(host_list)),
-            ', please try again'
-        ]
-        logger.error(''.join(msg))
+        msg = message.get('error_select_number').format(
+            max_number=len(host_list)
+        )
+        logger.error(msg)
         target_num = int(askInt(''))
     return host_list[target_num - 1]

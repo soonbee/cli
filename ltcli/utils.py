@@ -4,10 +4,9 @@ import sys
 from prompt_toolkit.styles import Style
 from terminaltables import AsciiTable
 
-from fbctl import config
-from fbctl import editor
-from fbctl.log import logger
-from fbctl.exceptions import ConvertError
+from ltcli import config, editor
+from ltcli.log import logger
+from ltcli.exceptions import ConvertError
 
 
 class TermColor:
@@ -271,3 +270,73 @@ def to_str(target):
     if isinstance(target, bytes):
         target = target.decode('utf-8')
     return str(target)
+
+
+def int_2_time(v):
+    v = int(v)
+    if v == 0:
+        return '0secs'
+    ONE_MIN = 60
+    ONE_HOUR = ONE_MIN * 60
+    ONE_DAY = ONE_HOUR * 24
+    ret = []
+    if v >= ONE_DAY:
+        days = v // ONE_DAY
+        v -= days * ONE_DAY
+        ret.append('{}days'.format(days))
+    if v >= ONE_HOUR:
+        hours = v // ONE_HOUR
+        v -= hours * ONE_HOUR
+        ret.append('{}hours'.format(hours))
+    if v >= ONE_MIN:
+        mins = v // ONE_MIN
+        v -= mins * ONE_MIN
+        ret.append('{}mins'.format(mins))
+    if v > 0:
+        ret.append('{}secs'.format(v))
+    return ' '.join(ret)
+
+
+def int_2_bytes(v):
+    v = int(v)
+    if v == 0:
+        return '0b'
+    KB = 1024
+    MB = KB * 1024
+    GB = MB * 1024
+    ret = []
+    if v >= GB:
+        gb = v // GB
+        v -= gb * GB
+        ret.append('{}gb'.format(gb))
+    if v >= MB:
+        mb = v // MB
+        v -= mb * MB
+        ret.append('{}mb'.format(mb))
+    if v >= KB:
+        kb = v // KB
+        v -= kb * KB
+        ret.append('{}kb'.format(kb))
+    if v > 0:
+        ret.append('{}b'.format(v))
+    return ' '.join(ret)
+
+
+def convert_2_human_readable(key, value):
+    enable_human_readable = {
+        'flash-db-ttl': 'date',
+        'flash-db-size-limit': 'byte',
+        'force_flush_slaves_outputbuffer_size': 'byte',
+        'maxmemory': 'byte'
+    }
+    if key not in enable_human_readable:
+        logger.debug('{} is not support human readable')
+        return value
+    if enable_human_readable[key] == 'date':
+        converted = int_2_time(value)
+        logger.debug('{} convert: {}'.format(value, converted))
+        return converted
+    if enable_human_readable[key] == 'byte':
+        converted = int_2_bytes(value)
+        logger.debug('{} convert: {}'.format(value, converted))
+        return converted

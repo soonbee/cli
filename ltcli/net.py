@@ -11,9 +11,9 @@ import shutil
 import paramiko
 import requests
 
-from fbctl import parser
-from fbctl.log import logger
-from fbctl.exceptions import (
+from ltcli import parser, message
+from ltcli.log import logger
+from ltcli.exceptions import (
     SSHConnectionError,
     HostConnectionError,
     HostNameError,
@@ -275,7 +275,7 @@ def ping(host, duration=3):
     print(response)
     logger.debug('ping to {}, respose: {}'.format(host, response))
     if response is not 0:
-        raise HostConnectionError(host, status_code=response)
+        raise HostConnectionError(host)
 
 
 def is_port_empty(host, port):
@@ -314,7 +314,8 @@ def download_file(url, file_path):
     file_name = os.path.basename(file_path)
     try:
         with open(download_path, 'wb') as f:
-            logger.info('Downloading {}'.format(file_name))
+            msg = message.get('file_download').format(file_name=file_name)
+            logger.info(msg)
             logger.debug('url: {}'.format(url))
             logger.debug('installer name: {}'.format(file_name))
             response = requests.get(url, stream=True)
@@ -372,7 +373,9 @@ def get_installers_from_fb_s3(maximum_number=5):
         res = requests.get(url)
         status_code = res.status_code
         if status_code >= 400:
-            logger.warning('{}:HTTP Status {}'.format(warning_msg, status_code))
+            msg = message.get('error_http_request')
+            msg = msg.format(code=status_code, msg=warning_msg)
+            logger.warning(msg)
         res_text = str(res.text)
         res_text = list(map(lambda x: x.strip(), res_text.split('\n')))
         filtered = list(filter(lambda x: x.startswith('<a href='), res_text))
@@ -385,5 +388,6 @@ def get_installers_from_fb_s3(maximum_number=5):
             maximum_number -= 1
         return ret
     except requests.exceptions.ConnectionError:
-        logger.warning('{}:Connection failed'.format(warning_msg))
+        msg = message.get('error_http_connection').format(msg=warning_msg)
+        logger.warning(msg)
         return []

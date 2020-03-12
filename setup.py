@@ -9,24 +9,25 @@ with open('requirements.txt') as file_requirements:
     requirements = file_requirements.read().splitlines()
 
 about = {}
-with open(os.path.join(here, 'fbctl', '__version__.py'), 'r') as f:
+with open(os.path.join(here, 'ltcli', '__version__.py'), 'r') as f:
     exec(f.read(), about)
 
 setup(
     name=about['__title__'],
     version=about['__version__'],
     description=about['__description__'],
-    author='dudaji',
-    author_email='shhong@dudaji.com',
+    author=about['__author__'],
+    author_email=about['__email__'],
     url=about['__url__'],
     install_requires=requirements,
     packages=find_packages(exclude=['tests', 'docs', 'sql']),
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    include_package_data=True,
     package_data={},
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'fbctl = fbctl.cli_main:main'
+            'ltcli = ltcli.cli_main:main'
         ]
     },
     classifiers=[
