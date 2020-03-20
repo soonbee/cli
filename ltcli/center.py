@@ -22,7 +22,7 @@ from ltcli.exceptions import (
 
 
 def get_ps_list_command(port_list):
-    port_filter = '|'.join(str(x) for x in port_list)
+    port_filter = '|'.join(':{}'.format(x) for x in port_list)
     command = [
         "ps -ef",
         "grep 'redis-server'",
@@ -35,7 +35,7 @@ def get_ps_list_command(port_list):
 
 
 def get_my_ps_list_command(port_list, cluster_id):
-    port_filter = '|'.join(str(x) for x in port_list)
+    port_filter = '|'.join(':{}'.format(x) for x in port_list)
     command = [
         "ps -ef",
         "grep 'redis-server'",
