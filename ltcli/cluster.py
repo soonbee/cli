@@ -95,13 +95,13 @@ class Cluster(object):
             master_alive_count = center.get_alive_master_redis_count()
             if master_alive_count > 0:
                 msg = message.get('error_cluster_start_master_collision')
-                msg = msg.format(count=master_alive_count)
+                msg = '\n'.join(msg).format(count=master_alive_count)
                 raise LightningDBError(11, ''.join(msg))
         slave_alive_count = center.get_alive_slave_redis_count()
         if slave:
             if slave_alive_count > 0:
                 msg = message.get('error_cluster_start_master_collision')
-                msg = msg.format(count=slave_alive_count)
+                msg = '\n'.join(msg).format(count=slave_alive_count)
                 raise LightningDBError(12, ''.join(msg))
         center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()

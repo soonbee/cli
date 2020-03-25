@@ -6,6 +6,7 @@ import six
 import sys
 from retrying import retry
 from six.moves import range
+from time import sleep
 
 from ltcli import message
 from ltcli.log import logger
@@ -75,6 +76,7 @@ def _poll_check_status(t):
         t.raise_('Unexpected status: %s' % m)
 
 
+@retry(stop_max_attempt_number=2, wait_fixed=500)
 def _add_slots(conn, slots_list, max_slots):
     def addslots(slots_chunk):
         m = conn.execute('cluster', 'addslots', *slots_chunk)
@@ -89,6 +91,11 @@ def _add_slots(conn, slots_list, max_slots):
 
 def _add_slots_range(conn, begin, end, max_slots):
     _add_slots(conn, list(range(begin, end)), max_slots)
+
+
+@retry(stop_max_attempt_number=8, wait_fixed=500)
+def _create(t, first_conn):
+    t.execute('cluster', 'meet', first_conn.host, first_conn.port)
 
 
 def create(host_port_list, max_slots=1024):
@@ -106,7 +113,8 @@ def create(host_port_list, max_slots=1024):
         first_conn = conns[0]
         for i, t in enumerate(conns[1:]):
             logger.info(' - {}:{}'.format(t.host, t.port))
-            t.execute('cluster', 'meet', first_conn.host, first_conn.port)
+            _create(t, first_conn)
+            sleep(0.02)
 
         slots_each = SLOT_COUNT // len(conns)
         slots_residue = SLOT_COUNT - slots_each * len(conns)
@@ -120,6 +128,7 @@ def create(host_port_list, max_slots=1024):
             slots_residue + slots_each,
         ))
         _add_slots_range(first_conn, 0, first_node_slots, max_slots)
+        sleep(0.02)
         logging.info('Add %d slots to %s:%d', slots_residue + slots_each,
                      first_conn.host, first_conn.port)
         for i, t in enumerate(conns[1:]):
@@ -128,6 +137,7 @@ def create(host_port_list, max_slots=1024):
             _add_slots_range(t, i * slots_each + first_node_slots,
                              (i + 1) * slots_each + first_node_slots,
                              max_slots)
+            sleep(0.02)
             logging.info('Add %d slots to %s:%d', slots_each, t.host, t.port)
         msg = message.get('check_cluster_state_asign_slot')
         logger.info(msg)
