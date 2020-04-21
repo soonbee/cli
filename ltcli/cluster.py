@@ -93,16 +93,24 @@ class Cluster(object):
         center.ensure_cluster_exist()
         if master:
             master_alive_count = center.get_alive_master_redis_count()
-            if master_alive_count > 0:
+            master_alive_count_mine = center.get_alive_master_redis_count(
+                check_owner=True
+            )
+            not_mine_count = master_alive_count - master_alive_count_mine
+            if not_mine_count > 0:
                 msg = message.get('error_cluster_start_master_collision')
-                msg = '\n'.join(msg).format(count=master_alive_count)
-                raise LightningDBError(11, ''.join(msg))
-        slave_alive_count = center.get_alive_slave_redis_count()
+                msg = '\n'.join(msg).format(count=not_mine_count)
+                raise LightningDBError(11, msg)
         if slave:
-            if slave_alive_count > 0:
-                msg = message.get('error_cluster_start_master_collision')
-                msg = '\n'.join(msg).format(count=slave_alive_count)
-                raise LightningDBError(12, ''.join(msg))
+            slave_alive_count = center.get_alive_slave_redis_count()
+            slave_alive_count_mine = center.get_alive_slave_redis_count(
+                check_owner=True
+            )
+            not_mine_count = slave_alive_count - slave_alive_count_mine
+            if not_mine_count > 0:
+                msg = message.get('error_cluster_start_slave_collision')
+                msg = '\n'.join(msg).format(count=not_mine_count)
+                raise LightningDBError(12, msg)
         center.backup_server_logs(master=master, slave=slave)
         center.create_redis_data_directory()
 
@@ -343,10 +351,14 @@ class Cluster(object):
             return
         center.ensure_cluster_exist()
         slave_alive_count = center.get_alive_slave_redis_count()
-        if slave_alive_count > 0:
+        slave_alive_count_mine = center.get_alive_slave_redis_count(
+            check_owner=True
+        )
+        not_mine_count = slave_alive_count - slave_alive_count_mine
+        if not_mine_count > 0:
             msg = message.get('error_cluster_start_slave_collision')
-            msg = msg.format(count=slave_alive_count)
-            raise LightningDBError(12, ''.join(msg))
+            msg = '\n'.join(msg).format(count=not_mine_count)
+            raise LightningDBError(12, msg)
 
         # confirm info
         result = center.confirm_node_port_info(skip=yes)
